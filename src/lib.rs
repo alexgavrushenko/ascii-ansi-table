@@ -40,6 +40,30 @@ pub fn validate_table_data(data: &TableData) -> Result<(), String> {
     Ok(())
 }
 
+pub fn render_table(data: &TableData, column_width: usize) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+
+    let mut result = String::new();
+    
+    for row in &data.rows {
+        result.push('|');
+        for cell in row {
+            let padded_cell = format!("{:width$}", cell, width = column_width);
+            result.push(' ');
+            result.push_str(&padded_cell);
+            result.push(' ');
+            result.push('|');
+        }
+        result.push('\n');
+    }
+    
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,5 +96,16 @@ mod tests {
             vec!["1".to_string()], // Wrong column count
         ]);
         assert!(validate_table_data(&data).is_err());
+    }
+
+    #[test]
+    fn test_render_simple_table() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+        ]);
+        let result = render_table(&data, 3).unwrap();
+        assert!(result.contains("| A   | B   |"));
+        assert!(result.contains("| 1   | 2   |"));
     }
 }
