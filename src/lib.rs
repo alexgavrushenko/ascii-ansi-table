@@ -40,6 +40,48 @@ pub fn validate_table_data(data: &TableData) -> Result<(), String> {
     Ok(())
 }
 
+pub fn calculate_column_widths(data: &TableData) -> Vec<usize> {
+    if data.is_empty() {
+        return vec![];
+    }
+    
+    let mut widths = vec![0; data.column_count()];
+    
+    for row in &data.rows {
+        for (i, cell) in row.iter().enumerate() {
+            widths[i] = widths[i].max(cell.len());
+        }
+    }
+    
+    widths
+}
+
+pub fn render_table_auto_width(data: &TableData) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+    
+    let column_widths = calculate_column_widths(data);
+    
+    let mut result = String::new();
+    
+    for row in &data.rows {
+        result.push('|');
+        for (i, cell) in row.iter().enumerate() {
+            let padded_cell = format!("{:width$}", cell, width = column_widths[i]);
+            result.push(' ');
+            result.push_str(&padded_cell);
+            result.push(' ');
+            result.push('|');
+        }
+        result.push('\n');
+    }
+    
+    Ok(result)
+}
+
 pub fn render_table(data: &TableData, column_width: usize) -> Result<String, String> {
     validate_table_data(data)?;
     
@@ -107,5 +149,26 @@ mod tests {
         let result = render_table(&data, 3).unwrap();
         assert!(result.contains("| A   | B   |"));
         assert!(result.contains("| 1   | 2   |"));
+    }
+
+    #[test]
+    fn test_calculate_column_widths() {
+        let data = TableData::new(vec![
+            vec!["Short".to_string(), "A".to_string()],
+            vec!["Very Long Text".to_string(), "B".to_string()],
+        ]);
+        let widths = calculate_column_widths(&data);
+        assert_eq!(widths, vec![14, 1]); // "Very Long Text" = 14, "B" = 1
+    }
+
+    #[test]
+    fn test_render_auto_width() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Age".to_string()],
+            vec!["John".to_string(), "30".to_string()],
+        ]);
+        let result = render_table_auto_width(&data).unwrap();
+        assert!(result.contains("| Name | Age |"));
+        assert!(result.contains("| John | 30  |"));
     }
 }
