@@ -56,6 +56,52 @@ pub fn calculate_column_widths(data: &TableData) -> Vec<usize> {
     widths
 }
 
+pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+    
+    let column_widths = calculate_column_widths(data);
+    let mut result = String::new();
+    
+    // Top border
+    result.push('┌');
+    for (i, width) in column_widths.iter().enumerate() {
+        result.push_str(&"─".repeat(width + 2));
+        if i < column_widths.len() - 1 {
+            result.push('┬');
+        }
+    }
+    result.push('┐');
+    result.push('\n');
+    
+    // Data rows with side borders
+    for row in &data.rows {
+        result.push('│');
+        for (i, cell) in row.iter().enumerate() {
+            let padded_cell = format!(" {:width$} ", cell, width = column_widths[i]);
+            result.push_str(&padded_cell);
+            result.push('│');
+        }
+        result.push('\n');
+    }
+    
+    // Bottom border
+    result.push('└');
+    for (i, width) in column_widths.iter().enumerate() {
+        result.push_str(&"─".repeat(width + 2));
+        if i < column_widths.len() - 1 {
+            result.push('┴');
+        }
+    }
+    result.push('┘');
+    result.push('\n');
+    
+    Ok(result)
+}
+
 pub fn render_table_auto_width(data: &TableData) -> Result<String, String> {
     validate_table_data(data)?;
     
@@ -170,5 +216,20 @@ mod tests {
         let result = render_table_auto_width(&data).unwrap();
         assert!(result.contains("| Name | Age |"));
         assert!(result.contains("| John | 30  |"));
+    }
+
+    #[test]
+    fn test_render_with_borders() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+        ]);
+        let result = render_table_with_borders(&data).unwrap();
+        assert!(result.contains("┌"));
+        assert!(result.contains("┐"));
+        assert!(result.contains("└"));
+        assert!(result.contains("┘"));
+        assert!(result.contains("│"));
+        assert!(result.contains("─"));
     }
 }
