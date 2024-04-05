@@ -1,3 +1,6 @@
+pub mod border;
+
+pub use border::BorderChars;
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -56,7 +59,7 @@ pub fn calculate_column_widths(data: &TableData) -> Vec<usize> {
     widths
 }
 
-pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
+pub fn render_table_with_custom_borders(data: &TableData, border: &BorderChars) -> Result<String, String> {
     validate_table_data(data)?;
     
     if data.is_empty() {
@@ -67,39 +70,43 @@ pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
     let mut result = String::new();
     
     // Top border
-    result.push('┌');
+    result.push(border.top_left);
     for (i, width) in column_widths.iter().enumerate() {
-        result.push_str(&"─".repeat(width + 2));
+        result.push_str(&border.horizontal.to_string().repeat(width + 2));
         if i < column_widths.len() - 1 {
-            result.push('┬');
+            result.push(border.top_junction);
         }
     }
-    result.push('┐');
+    result.push(border.top_right);
     result.push('\n');
     
     // Data rows with side borders
     for row in &data.rows {
-        result.push('│');
+        result.push(border.vertical);
         for (i, cell) in row.iter().enumerate() {
             let padded_cell = format!(" {:width$} ", cell, width = column_widths[i]);
             result.push_str(&padded_cell);
-            result.push('│');
+            result.push(border.vertical);
         }
         result.push('\n');
     }
     
     // Bottom border
-    result.push('└');
+    result.push(border.bottom_left);
     for (i, width) in column_widths.iter().enumerate() {
-        result.push_str(&"─".repeat(width + 2));
+        result.push_str(&border.horizontal.to_string().repeat(width + 2));
         if i < column_widths.len() - 1 {
-            result.push('┴');
+            result.push(border.bottom_junction);
         }
     }
-    result.push('┘');
+    result.push(border.bottom_right);
     result.push('\n');
     
     Ok(result)
+}
+
+pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
+    render_table_with_custom_borders(data, &BorderChars::default())
 }
 
 pub fn render_table_auto_width(data: &TableData) -> Result<String, String> {
@@ -231,5 +238,18 @@ mod tests {
         assert!(result.contains("┘"));
         assert!(result.contains("│"));
         assert!(result.contains("─"));
+    }
+
+    #[test]
+    fn test_render_with_custom_borders() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+        ]);
+        let ascii_border = BorderChars::ascii();
+        let result = render_table_with_custom_borders(&data, &ascii_border).unwrap();
+        assert!(result.contains("+"));
+        assert!(result.contains("|"));
+        assert!(result.contains("-"));
     }
 }
