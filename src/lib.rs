@@ -1,6 +1,6 @@
 pub mod border;
 
-pub use border::BorderChars;
+pub use border::{BorderChars, get_border_style};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -251,5 +251,27 @@ mod tests {
         assert!(result.contains("+"));
         assert!(result.contains("|"));
         assert!(result.contains("-"));
+    }
+
+    #[test]
+    fn test_border_templates() {
+        let data = TableData::new(vec![
+            vec!["Test".to_string()],
+        ]);
+
+        // Test honeywell style
+        let honeywell = get_border_style("honeywell").unwrap();
+        let result = render_table_with_custom_borders(&data, &honeywell).unwrap();
+        assert!(result.contains("┌"));
+
+        // Test ramac style
+        let ramac = get_border_style("ramac").unwrap();
+        let result = render_table_with_custom_borders(&data, &ramac).unwrap();
+        assert!(result.contains("+"));
+
+        // Test norc style
+        let norc = get_border_style("norc").unwrap();
+        let result = render_table_with_custom_borders(&data, &norc).unwrap();
+        assert!(result.contains("╔"));
     }
 }
