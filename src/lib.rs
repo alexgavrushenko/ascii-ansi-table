@@ -109,6 +109,10 @@ pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
     render_table_with_custom_borders(data, &BorderChars::default())
 }
 
+pub fn render_table_borderless(data: &TableData) -> Result<String, String> {
+    render_table_with_custom_borders(data, &BorderChars::void())
+}
+
 pub fn render_table_auto_width(data: &TableData) -> Result<String, String> {
     validate_table_data(data)?;
     
@@ -273,5 +277,26 @@ mod tests {
         let norc = get_border_style("norc").unwrap();
         let result = render_table_with_custom_borders(&data, &norc).unwrap();
         assert!(result.contains("╔"));
+    }
+
+    #[test]
+    fn test_render_borderless() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Age".to_string()],
+            vec!["John".to_string(), "30".to_string()],
+        ]);
+        let result = render_table_borderless(&data).unwrap();
+        
+        // Should contain content but no border characters
+        assert!(result.contains("Name"));
+        assert!(result.contains("John"));
+        assert!(!result.contains("┌"));
+        assert!(!result.contains("+"));
+        assert!(!result.contains("╔"));
+        
+        // Should use spaces for all border positions
+        let void = get_border_style("void").unwrap();
+        let expected = render_table_with_custom_borders(&data, &void).unwrap();
+        assert_eq!(result, expected);
     }
 }

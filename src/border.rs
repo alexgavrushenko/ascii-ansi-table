@@ -63,6 +63,20 @@ impl BorderChars {
         }
     }
 
+    // No borders (void style)
+    pub fn void() -> Self {
+        Self {
+            top_left: ' ',
+            top_right: ' ',
+            bottom_left: ' ',
+            bottom_right: ' ',
+            horizontal: ' ',
+            vertical: ' ',
+            top_junction: ' ',
+            bottom_junction: ' ',
+        }
+    }
+
     // Legacy alias
     pub fn ascii() -> Self {
         Self::ramac()
@@ -74,6 +88,7 @@ pub fn get_border_style(name: &str) -> Result<BorderChars, String> {
         "honeywell" => Ok(BorderChars::honeywell()),
         "ramac" => Ok(BorderChars::ramac()),
         "norc" => Ok(BorderChars::norc()),
+        "void" => Ok(BorderChars::void()),
         "ascii" => Ok(BorderChars::ascii()),
         _ => Err(format!("Unknown border style: {}", name)),
     }
@@ -112,10 +127,19 @@ mod tests {
     }
 
     #[test]
+    fn test_void_border() {
+        let border = BorderChars::void();
+        assert_eq!(border.top_left, ' ');
+        assert_eq!(border.vertical, ' ');
+        assert_eq!(border.horizontal, ' ');
+    }
+
+    #[test]
     fn test_get_border_style() {
         assert!(get_border_style("honeywell").is_ok());
         assert!(get_border_style("ramac").is_ok());
         assert!(get_border_style("norc").is_ok());
+        assert!(get_border_style("void").is_ok());
         assert!(get_border_style("invalid").is_err());
     }
 }
