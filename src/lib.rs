@@ -1,6 +1,8 @@
 pub mod border;
+pub mod renderer;
 
 pub use border::{BorderChars, get_border_style};
+pub use renderer::RenderOptions;
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -111,6 +113,73 @@ pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
 
 pub fn render_table_borderless(data: &TableData) -> Result<String, String> {
     render_table_with_custom_borders(data, &BorderChars::void())
+}
+
+pub fn render_table_with_options(
+    data: &TableData,
+    border: &BorderChars,
+    options: &RenderOptions,
+) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+    
+    let column_widths = calculate_column_widths(data);
+    let mut result = String::new();
+    
+    // Top border (optional)
+    if options.show_top_border {
+        result.push(border.top_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            if i < column_widths.len() - 1 {
+                result.push(border.top_junction);
+            }
+        }
+        result.push(border.top_right);
+        result.push('\n');
+    }
+    
+    // Data rows with side borders
+    for (row_idx, row) in data.rows.iter().enumerate() {
+        result.push(border.vertical);
+        for (i, cell) in row.iter().enumerate() {
+            let padded_cell = format!(" {:width$} ", cell, width = column_widths[i]);
+            result.push_str(&padded_cell);
+            result.push(border.vertical);
+        }
+        result.push('\n');
+        
+        // Row separator (optional, not after last row)
+        if options.show_row_separators && row_idx < data.rows.len() - 1 {
+            result.push('├');
+            for (i, width) in column_widths.iter().enumerate() {
+                result.push_str(&border.horizontal.to_string().repeat(width + 2));
+                if i < column_widths.len() - 1 {
+                    result.push('┼');
+                }
+            }
+            result.push('┤');
+            result.push('\n');
+        }
+    }
+    
+    // Bottom border (optional)
+    if options.show_bottom_border {
+        result.push(border.bottom_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            if i < column_widths.len() - 1 {
+                result.push(border.bottom_junction);
+            }
+        }
+        result.push(border.bottom_right);
+        result.push('\n');
+    }
+    
+    Ok(result)
 }
 
 pub fn render_table_auto_width(data: &TableData) -> Result<String, String> {
@@ -298,5 +367,29 @@ mod tests {
         let void = get_border_style("void").unwrap();
         let expected = render_table_with_custom_borders(&data, &void).unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_render_with_options() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+            vec!["X".to_string(), "Y".to_string()],
+        ]);
+        
+        // Test with row separators
+        let options = RenderOptions::with_row_separators();
+        let border = BorderChars::default();
+        let result = render_table_with_options(&data, &border, &options).unwrap();
+        assert!(result.contains("├"));
+        assert!(result.contains("┼"));
+        assert!(result.contains("┤"));
+        
+        // Test no horizontal lines
+        let options = RenderOptions::no_horizontal_lines();
+        let result = render_table_with_options(&data, &border, &options).unwrap();
+        assert!(!result.contains("┌"));
+        assert!(!result.contains("└"));
+        assert!(result.contains("│")); // Should still have vertical borders
     }
 }
