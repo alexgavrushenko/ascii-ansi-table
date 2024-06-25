@@ -1,8 +1,10 @@
 pub mod border;
 pub mod renderer;
+pub mod alignment;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
+pub use alignment::{Alignment, ColumnConfig, align_text};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -113,6 +115,87 @@ pub fn render_table_with_borders(data: &TableData) -> Result<String, String> {
 
 pub fn render_table_borderless(data: &TableData) -> Result<String, String> {
     render_table_with_custom_borders(data, &BorderChars::void())
+}
+
+pub fn render_table_with_column_config(
+    data: &TableData,
+    border: &BorderChars,
+    options: &RenderOptions,
+    column_configs: &[ColumnConfig],
+) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+    
+    let auto_widths = calculate_column_widths(data);
+    let mut column_widths = Vec::new();
+    
+    // Determine final column widths and configurations
+    for i in 0..data.column_count() {
+        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let width = config.width.unwrap_or(auto_widths[i]);
+        column_widths.push(width);
+    }
+    
+    let mut result = String::new();
+    
+    // Top border (optional)
+    if options.show_top_border {
+        result.push(border.top_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            if i < column_widths.len() - 1 {
+                result.push(border.top_junction);
+            }
+        }
+        result.push(border.top_right);
+        result.push('\n');
+    }
+    
+    // Data rows with side borders and alignment
+    for (row_idx, row) in data.rows.iter().enumerate() {
+        result.push(border.vertical);
+        for (i, cell) in row.iter().enumerate() {
+            let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+            let width = column_widths[i];
+            let aligned_cell = align_text(cell, width, config.alignment);
+            result.push(' ');
+            result.push_str(&aligned_cell);
+            result.push(' ');
+            result.push(border.vertical);
+        }
+        result.push('\n');
+        
+        // Row separator (optional, not after last row)
+        if options.show_row_separators && row_idx < data.rows.len() - 1 {
+            result.push('├');
+            for (i, width) in column_widths.iter().enumerate() {
+                result.push_str(&border.horizontal.to_string().repeat(width + 2));
+                if i < column_widths.len() - 1 {
+                    result.push('┼');
+                }
+            }
+            result.push('┤');
+            result.push('\n');
+        }
+    }
+    
+    // Bottom border (optional)
+    if options.show_bottom_border {
+        result.push(border.bottom_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            if i < column_widths.len() - 1 {
+                result.push(border.bottom_junction);
+            }
+        }
+        result.push(border.bottom_right);
+        result.push('\n');
+    }
+    
+    Ok(result)
 }
 
 pub fn render_table_with_options(
@@ -391,5 +474,28 @@ mod tests {
         assert!(!result.contains("┌"));
         assert!(!result.contains("└"));
         assert!(result.contains("│")); // Should still have vertical borders
+    }
+
+    #[test]
+    fn test_text_alignment() {
+        let data = TableData::new(vec![
+            vec!["Left".to_string(), "Center".to_string(), "Right".to_string()],
+            vec!["A".to_string(), "B".to_string(), "C".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8).with_alignment(Alignment::Left),
+            ColumnConfig::new().with_width(8).with_alignment(Alignment::Center), 
+            ColumnConfig::new().with_width(8).with_alignment(Alignment::Right),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_config(&data, &border, &options, &column_configs).unwrap();
+        
+        // Check that alignment is working by looking at spaces
+        assert!(result.contains("│ Left     │"));  // Left aligned
+        assert!(result.contains("│  Center  │"));  // Center aligned  
+        assert!(result.contains("│    Right │"));  // Right aligned
     }
 }
