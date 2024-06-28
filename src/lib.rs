@@ -1,10 +1,12 @@
 pub mod border;
 pub mod renderer;
 pub mod alignment;
+pub mod padding;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
+pub use padding::{Padding, apply_padding, apply_padding_with_width};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -76,7 +78,7 @@ pub fn render_table_with_custom_borders(data: &TableData, border: &BorderChars) 
     // Top border
     result.push(border.top_left);
     for (i, width) in column_widths.iter().enumerate() {
-        result.push_str(&border.horizontal.to_string().repeat(width + 2));
+        result.push_str(&border.horizontal.to_string().repeat(*width));
         if i < column_widths.len() - 1 {
             result.push(border.top_junction);
         }
@@ -98,7 +100,7 @@ pub fn render_table_with_custom_borders(data: &TableData, border: &BorderChars) 
     // Bottom border
     result.push(border.bottom_left);
     for (i, width) in column_widths.iter().enumerate() {
-        result.push_str(&border.horizontal.to_string().repeat(width + 2));
+        result.push_str(&border.horizontal.to_string().repeat(*width));
         if i < column_widths.len() - 1 {
             result.push(border.bottom_junction);
         }
@@ -132,11 +134,12 @@ pub fn render_table_with_column_config(
     let auto_widths = calculate_column_widths(data);
     let mut column_widths = Vec::new();
     
-    // Determine final column widths and configurations
+    // Determine final column widths and configurations (including padding)
     for i in 0..data.column_count() {
         let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
-        let width = config.width.unwrap_or(auto_widths[i]);
-        column_widths.push(width);
+        let content_width = config.width.unwrap_or(auto_widths[i]);
+        let total_width = content_width + config.padding.total();
+        column_widths.push(total_width);
     }
     
     let mut result = String::new();
@@ -145,7 +148,7 @@ pub fn render_table_with_column_config(
     if options.show_top_border {
         result.push(border.top_left);
         for (i, width) in column_widths.iter().enumerate() {
-            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            result.push_str(&border.horizontal.to_string().repeat(*width));
             if i < column_widths.len() - 1 {
                 result.push(border.top_junction);
             }
@@ -159,11 +162,13 @@ pub fn render_table_with_column_config(
         result.push(border.vertical);
         for (i, cell) in row.iter().enumerate() {
             let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
-            let width = column_widths[i];
-            let aligned_cell = align_text(cell, width, config.alignment);
-            result.push(' ');
-            result.push_str(&aligned_cell);
-            result.push(' ');
+            let content_width = config.width.unwrap_or(auto_widths[i]);
+            
+            // Apply alignment first, then padding
+            let aligned_cell = align_text(cell, content_width, config.alignment);
+            let padded_cell = apply_padding(&aligned_cell, config.padding);
+            
+            result.push_str(&padded_cell);
             result.push(border.vertical);
         }
         result.push('\n');
@@ -172,7 +177,7 @@ pub fn render_table_with_column_config(
         if options.show_row_separators && row_idx < data.rows.len() - 1 {
             result.push('├');
             for (i, width) in column_widths.iter().enumerate() {
-                result.push_str(&border.horizontal.to_string().repeat(width + 2));
+                result.push_str(&border.horizontal.to_string().repeat(*width));
                 if i < column_widths.len() - 1 {
                     result.push('┼');
                 }
@@ -186,7 +191,7 @@ pub fn render_table_with_column_config(
     if options.show_bottom_border {
         result.push(border.bottom_left);
         for (i, width) in column_widths.iter().enumerate() {
-            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            result.push_str(&border.horizontal.to_string().repeat(*width));
             if i < column_widths.len() - 1 {
                 result.push(border.bottom_junction);
             }
@@ -216,7 +221,7 @@ pub fn render_table_with_options(
     if options.show_top_border {
         result.push(border.top_left);
         for (i, width) in column_widths.iter().enumerate() {
-            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            result.push_str(&border.horizontal.to_string().repeat(*width));
             if i < column_widths.len() - 1 {
                 result.push(border.top_junction);
             }
@@ -239,7 +244,7 @@ pub fn render_table_with_options(
         if options.show_row_separators && row_idx < data.rows.len() - 1 {
             result.push('├');
             for (i, width) in column_widths.iter().enumerate() {
-                result.push_str(&border.horizontal.to_string().repeat(width + 2));
+                result.push_str(&border.horizontal.to_string().repeat(*width));
                 if i < column_widths.len() - 1 {
                     result.push('┼');
                 }
@@ -253,7 +258,7 @@ pub fn render_table_with_options(
     if options.show_bottom_border {
         result.push(border.bottom_left);
         for (i, width) in column_widths.iter().enumerate() {
-            result.push_str(&border.horizontal.to_string().repeat(width + 2));
+            result.push_str(&border.horizontal.to_string().repeat(*width));
             if i < column_widths.len() - 1 {
                 result.push(border.bottom_junction);
             }
@@ -497,5 +502,30 @@ mod tests {
         assert!(result.contains("│ Left     │"));  // Left aligned
         assert!(result.contains("│  Center  │"));  // Center aligned  
         assert!(result.contains("│    Right │"));  // Right aligned
+    }
+
+    #[test]
+    fn test_cell_padding() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["1".to_string(), "2".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new()
+                .with_width(4)
+                .with_padding(Padding::new(2, 1)),  // 2 left, 1 right
+            ColumnConfig::new()
+                .with_width(4) 
+                .with_padding(Padding::symmetric(3)), // 3 on each side
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_config(&data, &border, &options, &column_configs).unwrap();
+        
+        // Check padding is applied correctly
+        assert!(result.contains("│  A   │"));    // 2 left + "A" + 1 right + 2 spaces = "  A   "
+        assert!(result.contains("│   B   │"));   // 3 left + "B" + 3 right = "   B   "
     }
 }

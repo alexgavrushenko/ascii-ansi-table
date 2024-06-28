@@ -11,10 +11,13 @@ impl Default for Alignment {
     }
 }
 
+use crate::padding::Padding;
+
 #[derive(Debug, Clone)]
 pub struct ColumnConfig {
     pub width: Option<usize>,
     pub alignment: Alignment,
+    pub padding: Padding,
 }
 
 impl Default for ColumnConfig {
@@ -22,6 +25,7 @@ impl Default for ColumnConfig {
         Self {
             width: None,
             alignment: Alignment::default(),
+            padding: Padding::default(),
         }
     }
 }
@@ -38,6 +42,11 @@ impl ColumnConfig {
 
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
+        self
+    }
+
+    pub fn with_padding(mut self, padding: Padding) -> Self {
+        self.padding = padding;
         self
     }
 }
