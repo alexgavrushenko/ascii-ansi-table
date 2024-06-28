@@ -2,11 +2,13 @@ pub mod border;
 pub mod renderer;
 pub mod alignment;
 pub mod padding;
+pub mod truncation;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
 pub use padding::{Padding, apply_padding, apply_padding_with_width};
+pub use truncation::{TruncationConfig, truncate_text};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -164,8 +166,9 @@ pub fn render_table_with_column_config(
             let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
             let content_width = config.width.unwrap_or(auto_widths[i]);
             
-            // Apply alignment first, then padding
-            let aligned_cell = align_text(cell, content_width, config.alignment);
+            // Apply truncation first, then alignment, then padding
+            let truncated_cell = truncate_text(cell, &config.truncation);
+            let aligned_cell = align_text(&truncated_cell, content_width, config.alignment);
             let padded_cell = apply_padding(&aligned_cell, config.padding);
             
             result.push_str(&padded_cell);
@@ -527,5 +530,29 @@ mod tests {
         // Check padding is applied correctly
         assert!(result.contains("│  A   │"));    // 2 left + "A" + 1 right + 2 spaces = "  A   "
         assert!(result.contains("│   B   │"));   // 3 left + "B" + 3 right = "   B   "
+    }
+
+    #[test]
+    fn test_text_truncation() {
+        let data = TableData::new(vec![
+            vec!["Short".to_string(), "This is very long text".to_string()],
+            vec!["A".to_string(), "Another long text here".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8), // No truncation
+            ColumnConfig::new()
+                .with_width(10)
+                .with_truncation(TruncationConfig::new().with_max_width(10)),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_config(&data, &border, &options, &column_configs).unwrap();
+        
+        // Check truncation is working
+        assert!(result.contains("Short"));  // First column, no truncation
+        assert!(result.contains("This is..."));  // Second column truncated with ellipsis
+        assert!(result.contains("Another..."));  // Another truncated text
     }
 }
