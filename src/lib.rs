@@ -555,4 +555,26 @@ mod tests {
         assert!(result.contains("This is..."));  // Second column truncated with ellipsis
         assert!(result.contains("Another..."));  // Another truncated text
     }
+
+    #[test]
+    fn test_justify_alignment() {
+        let data = TableData::new(vec![
+            vec!["hello world".to_string()],
+            vec!["one two three".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new()
+                .with_width(15)
+                .with_alignment(Alignment::Justify),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_config(&data, &border, &options, &column_configs).unwrap();
+        
+        // Check justify alignment is working
+        assert!(result.contains("hello     world"));  // Justified text
+        assert!(result.contains("one    two  three")); // Justified with multiple gaps
+    }
 }

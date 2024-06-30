@@ -3,6 +3,7 @@ pub enum Alignment {
     Left,
     Center,
     Right,
+    Justify,
 }
 
 impl Default for Alignment {
@@ -75,7 +76,53 @@ pub fn align_text(text: &str, width: usize, alignment: Alignment) -> String {
             let right_pad = padding - left_pad;
             format!("{}{}{}", " ".repeat(left_pad), text, " ".repeat(right_pad))
         }
+        Alignment::Justify => justify_text(text, width),
     }
+}
+
+pub fn justify_text(text: &str, width: usize) -> String {
+    let text_len = text.len();
+    
+    if text_len >= width {
+        return text.to_string();
+    }
+    
+    let words: Vec<&str> = text.split_whitespace().collect();
+    
+    // If only one word, left-align it
+    if words.len() <= 1 {
+        return format!("{:<width$}", text, width = width);
+    }
+    
+    // Calculate spaces needed
+    let chars_without_spaces: usize = words.iter().map(|word| word.len()).sum();
+    let total_spaces_needed = width - chars_without_spaces;
+    let gaps = words.len() - 1;
+    
+    if gaps == 0 {
+        return format!("{:<width$}", text, width = width);
+    }
+    
+    let base_spaces = total_spaces_needed / gaps;
+    let extra_spaces = total_spaces_needed % gaps;
+    
+    let mut result = String::new();
+    
+    for (i, word) in words.iter().enumerate() {
+        result.push_str(word);
+        
+        if i < words.len() - 1 {
+            // Add base spaces plus one extra for the first 'extra_spaces' gaps
+            let spaces_to_add = if i < extra_spaces {
+                base_spaces + 1
+            } else {
+                base_spaces
+            };
+            result.push_str(&" ".repeat(spaces_to_add));
+        }
+    }
+    
+    result
 }
 
 #[cfg(test)]
@@ -130,5 +177,32 @@ mod tests {
         
         assert_eq!(config.width, Some(15));
         assert_eq!(config.alignment, Alignment::Center);
+    }
+
+    #[test]
+    fn test_justify_alignment() {
+        let result = align_text("hello world", 15, Alignment::Justify);
+        assert_eq!(result, "hello     world");
+        assert_eq!(result.len(), 15);
+    }
+
+    #[test]
+    fn test_justify_text_multiple_words() {
+        let result = justify_text("one two three", 20);
+        assert_eq!(result, "one      two   three");
+        assert_eq!(result.len(), 20);
+    }
+
+    #[test]
+    fn test_justify_text_single_word() {
+        let result = justify_text("hello", 10);
+        assert_eq!(result, "hello     "); // Should left-align single words
+        assert_eq!(result.len(), 10);
+    }
+
+    #[test]
+    fn test_justify_text_exact_fit() {
+        let result = justify_text("exact fit", 9);
+        assert_eq!(result, "exact fit");
     }
 }
