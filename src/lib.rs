@@ -3,12 +3,16 @@ pub mod renderer;
 pub mod alignment;
 pub mod padding;
 pub mod truncation;
+pub mod wrapping;
+pub mod multiline;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
 pub use padding::{Padding, apply_padding, apply_padding_with_width};
 pub use truncation::{TruncationConfig, truncate_text};
+pub use wrapping::{WrapMode, WrapConfig, wrap_text, calculate_wrapped_height};
+pub use multiline::render_table_with_wrapping;
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -576,5 +580,35 @@ mod tests {
         // Check justify alignment is working
         assert!(result.contains("hello     world"));  // Justified text
         assert!(result.contains("one    two  three")); // Justified with multiple gaps
+    }
+
+    #[test]
+    fn test_text_wrapping_integration() {
+        let data = TableData::new(vec![
+            vec!["Short".to_string(), "This is a very long text that needs to be wrapped properly".to_string()],
+            vec!["A".to_string(), "Another long line here".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new()
+                .with_width(15)
+                .with_wrapping(WrapConfig::new(15)),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_wrapping(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Short"));
+        assert!(result.contains("This is a very"));  // First wrapped line
+        assert!(result.contains("long text that"));   // Second wrapped line
+        
+        // Should have multiple content lines due to wrapping
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert!(content_lines.len() >= 2); // At least 2 content lines for wrapped text
     }
 }
