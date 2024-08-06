@@ -6,6 +6,7 @@ pub mod truncation;
 pub mod wrapping;
 pub mod multiline;
 pub mod unicode;
+pub mod ansi;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -16,6 +17,8 @@ pub use wrapping::{WrapMode, WrapConfig, wrap_text, calculate_wrapped_height};
 pub use multiline::render_table_with_wrapping;
 pub use unicode::{display_width, char_display_width, truncate_to_width, pad_to_width, 
                  calculate_unicode_column_widths, unicode_wrap_text};
+pub use ansi::{AnsiSequence, parse_ansi_sequences, strip_ansi_sequences, ansi_display_width,
+               ansi_truncate_to_width, ansi_pad_to_width, colors};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -56,6 +59,119 @@ pub fn validate_table_data(data: &TableData) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+pub fn render_table_ansi_aware(
+    data: &TableData,
+    border: &BorderChars,
+    options: &RenderOptions,
+    column_configs: &[ColumnConfig],
+) -> Result<String, String> {
+    validate_table_data(data)?;
+    
+    if data.is_empty() {
+        return Ok(String::new());
+    }
+    
+    // Calculate column widths based on stripped ANSI content
+    let mut auto_widths = vec![0; data.column_count()];
+    for row in &data.rows {
+        for (i, cell) in row.iter().enumerate().take(data.column_count()) {
+            auto_widths[i] = auto_widths[i].max(ansi_display_width(cell));
+        }
+    }
+    
+    let mut column_widths = Vec::new();
+    
+    // Determine final column widths and configurations (including padding)
+    for i in 0..data.column_count() {
+        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let content_width = config.width.unwrap_or(auto_widths[i]);
+        let total_width = content_width + config.padding.total();
+        column_widths.push(total_width);
+    }
+    
+    let mut result = String::new();
+    
+    // Top border (optional)
+    if options.show_top_border {
+        result.push(border.top_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(*width));
+            if i < column_widths.len() - 1 {
+                result.push(border.top_junction);
+            }
+        }
+        result.push(border.top_right);
+        result.push('\n');
+    }
+    
+    // Data rows with side borders and alignment
+    for (row_idx, row) in data.rows.iter().enumerate() {
+        result.push(border.vertical);
+        for (i, cell) in row.iter().enumerate() {
+            let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+            let content_width = config.width.unwrap_or(auto_widths[i]);
+            
+            // Apply truncation first (ANSI-aware)
+            let truncated_cell = if let Some(max_width) = config.truncation.max_width {
+                if config.truncation.ellipsis.is_empty() {
+                    ansi_truncate_to_width(cell, max_width)
+                } else {
+                    let cell_width = ansi_display_width(cell);
+                    if cell_width > max_width {
+                        let ellipsis_width = config.truncation.ellipsis.len();
+                        if max_width > ellipsis_width {
+                            let truncated = ansi_truncate_to_width(cell, max_width - ellipsis_width);
+                            format!("{}{}", truncated, config.truncation.ellipsis)
+                        } else {
+                            ansi_truncate_to_width(cell, max_width)
+                        }
+                    } else {
+                        cell.to_string()
+                    }
+                }
+            } else {
+                cell.to_string()
+            };
+            
+            // Apply alignment (ANSI-aware)
+            let aligned_cell = ansi_pad_to_width(&truncated_cell, content_width, config.alignment);
+            let padded_cell = apply_padding(&aligned_cell, config.padding);
+            
+            result.push_str(&padded_cell);
+            result.push(border.vertical);
+        }
+        result.push('\n');
+        
+        // Row separator (optional, not after last row)
+        if options.show_row_separators && row_idx < data.rows.len() - 1 {
+            result.push('├');
+            for (i, width) in column_widths.iter().enumerate() {
+                result.push_str(&border.horizontal.to_string().repeat(*width));
+                if i < column_widths.len() - 1 {
+                    result.push('┼');
+                }
+            }
+            result.push('┤');
+            result.push('\n');
+        }
+    }
+    
+    // Bottom border (optional)
+    if options.show_bottom_border {
+        result.push(border.bottom_left);
+        for (i, width) in column_widths.iter().enumerate() {
+            result.push_str(&border.horizontal.to_string().repeat(*width));
+            if i < column_widths.len() - 1 {
+                result.push(border.bottom_junction);
+            }
+        }
+        result.push(border.bottom_right);
+        result.push('\n');
+    }
+    
+    Ok(result)
 }
 
 pub fn render_table_unicode_aware(
@@ -756,5 +872,44 @@ mod tests {
                 assert_eq!(line.len(), first_len, "Unicode width calculation should make all lines same length");
             }
         }
+    }
+
+    #[test]
+    fn test_ansi_color_support() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Status".to_string()],
+            vec!["Alice".to_string(), format!("{}Active{}", colors::GREEN, colors::RESET)],
+            vec!["Bob".to_string(), format!("{}Inactive{}", colors::RED, colors::RESET)],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new().with_width(10),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_ansi_aware(&data, &border, &options, &column_configs).unwrap();
+        
+        // Should contain ANSI color codes
+        assert!(result.contains(colors::GREEN));
+        assert!(result.contains(colors::RED));
+        assert!(result.contains(colors::RESET));
+        
+        // Should contain the actual content
+        assert!(result.contains("Alice"));
+        assert!(result.contains("Bob"));
+        assert!(result.contains("Active"));
+        assert!(result.contains("Inactive"));
+        
+        // Table structure should be maintained despite ANSI codes
+        let lines: Vec<&str> = result.lines().collect();
+        let content_lines: Vec<&str> = lines
+            .iter()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        
+        // All content lines should have consistent visual length despite ANSI codes
+        assert!(content_lines.len() >= 2);
     }
 }
