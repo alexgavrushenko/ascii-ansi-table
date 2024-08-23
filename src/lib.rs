@@ -7,18 +7,22 @@ pub mod wrapping;
 pub mod multiline;
 pub mod unicode;
 pub mod ansi;
+pub mod ansi_multiline;
+pub mod newline;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
 pub use padding::{Padding, apply_padding, apply_padding_with_width};
 pub use truncation::{TruncationConfig, truncate_text};
-pub use wrapping::{WrapMode, WrapConfig, wrap_text, calculate_wrapped_height};
+pub use wrapping::{WrapMode, WrapConfig, wrap_text, calculate_wrapped_height, wrap_ansi_text};
 pub use multiline::render_table_with_wrapping;
 pub use unicode::{display_width, char_display_width, truncate_to_width, pad_to_width, 
                  calculate_unicode_column_widths, unicode_wrap_text};
 pub use ansi::{AnsiSequence, parse_ansi_sequences, strip_ansi_sequences, ansi_display_width,
                ansi_truncate_to_width, ansi_pad_to_width, colors};
+pub use ansi_multiline::render_table_with_ansi_wrapping;
+pub use newline::{split_lines, render_table_with_newlines, calculate_newline_column_widths};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -911,5 +915,88 @@ mod tests {
         
         // All content lines should have consistent visual length despite ANSI codes
         assert!(content_lines.len() >= 2);
+    }
+
+    #[test]
+    fn test_newline_support() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Address".to_string()],
+            vec!["Alice".to_string(), "123 Main St\nAnytown\nCA 90210".to_string()],
+            vec!["Bob".to_string(), "456 Oak Ave\nSomecity, TX".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new().with_width(15),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_newlines(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Alice"));
+        assert!(result.contains("123 Main St"));
+        assert!(result.contains("Anytown"));
+        assert!(result.contains("CA 90210"));
+        assert!(result.contains("Bob"));
+        assert!(result.contains("456 Oak Ave"));
+        assert!(result.contains("Somecity, TX"));
+        
+        // Should handle multi-line cells properly
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert!(content_lines.len() >= 5); // At least 5 content lines due to multi-line addresses
+    }
+
+    #[test]
+    fn test_split_lines_function() {
+        assert_eq!(split_lines("single line"), vec!["single line"]);
+        assert_eq!(split_lines("line1\nline2"), vec!["line1", "line2"]);
+        assert_eq!(split_lines("a\nb\nc"), vec!["a", "b", "c"]);
+        assert_eq!(split_lines(""), vec![""]);
+        assert_eq!(split_lines("line\n\nafter empty"), vec!["line", "", "after empty"]);
+    }
+
+    #[test]
+    fn test_calculate_newline_column_widths() {
+        let rows = vec![
+            vec!["Short".to_string(), "Normal".to_string()],
+            vec!["Multi\nLine\nContent".to_string(), "Single".to_string()],
+        ];
+        
+        let widths = calculate_newline_column_widths(&rows);
+        assert_eq!(widths[0], 7); // "Content" = 7 chars
+        assert_eq!(widths[1], 6); // "Normal" = 6 chars
+    }
+
+    #[test]
+    fn test_newline_with_alignment() {
+        let data = TableData::new(vec![
+            vec!["Left\nAlign".to_string(), "Center\nAlign".to_string(), "Right\nAlign".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(10).with_alignment(Alignment::Left),
+            ColumnConfig::new().with_width(10).with_alignment(Alignment::Center),
+            ColumnConfig::new().with_width(10).with_alignment(Alignment::Right),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_newlines(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Left"));
+        assert!(result.contains("Center"));
+        assert!(result.contains("Right"));
+        assert!(result.contains("Align"));
+        
+        // Should have proper multi-line rendering with different alignments
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert_eq!(content_lines.len(), 2); // Two lines for each multi-line cell
     }
 }
