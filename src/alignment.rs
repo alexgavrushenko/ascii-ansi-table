@@ -15,11 +15,13 @@ impl Default for Alignment {
 use crate::padding::Padding;
 use crate::truncation::TruncationConfig;
 use crate::wrapping::WrapConfig;
+use crate::vertical_alignment::VerticalAlignment;
 
 #[derive(Debug, Clone)]
 pub struct ColumnConfig {
     pub width: Option<usize>,
     pub alignment: Alignment,
+    pub vertical_alignment: VerticalAlignment,
     pub padding: Padding,
     pub truncation: TruncationConfig,
     pub wrap_config: Option<WrapConfig>,
@@ -30,6 +32,7 @@ impl Default for ColumnConfig {
         Self {
             width: None,
             alignment: Alignment::default(),
+            vertical_alignment: VerticalAlignment::default(),
             padding: Padding::default(),
             truncation: TruncationConfig::default(),
             wrap_config: None,
@@ -64,6 +67,11 @@ impl ColumnConfig {
 
     pub fn with_wrapping(mut self, wrap_config: WrapConfig) -> Self {
         self.wrap_config = Some(wrap_config);
+        self
+    }
+
+    pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
+        self.vertical_alignment = vertical_alignment;
         self
     }
 }

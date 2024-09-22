@@ -1,6 +1,7 @@
 pub mod border;
 pub mod renderer;
 pub mod alignment;
+pub mod vertical_alignment;
 pub mod padding;
 pub mod truncation;
 pub mod wrapping;
@@ -9,10 +10,12 @@ pub mod unicode;
 pub mod ansi;
 pub mod ansi_multiline;
 pub mod newline;
+pub mod vertical_multiline;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
+pub use vertical_alignment::{VerticalAlignment, apply_vertical_alignment, calculate_middle_position};
 pub use padding::{Padding, apply_padding, apply_padding_with_width};
 pub use truncation::{TruncationConfig, truncate_text};
 pub use wrapping::{WrapMode, WrapConfig, wrap_text, calculate_wrapped_height, wrap_ansi_text};
@@ -23,6 +26,7 @@ pub use ansi::{AnsiSequence, parse_ansi_sequences, strip_ansi_sequences, ansi_di
                ansi_truncate_to_width, ansi_pad_to_width, colors};
 pub use ansi_multiline::render_table_with_ansi_wrapping;
 pub use newline::{split_lines, render_table_with_newlines, calculate_newline_column_widths};
+pub use vertical_multiline::render_table_with_vertical_alignment;
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -998,5 +1002,75 @@ mod tests {
             .filter(|line| line.starts_with("│") && !line.contains("─"))
             .collect();
         assert_eq!(content_lines.len(), 2); // Two lines for each multi-line cell
+    }
+
+    #[test]
+    fn test_vertical_alignment_support() {
+        let data = TableData::new(vec![
+            vec!["Top".to_string(), "Middle".to_string(), "Bottom".to_string()],
+            vec!["Line1\nLine2\nLine3".to_string(), "A\nB".to_string(), "X".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new()
+                .with_width(8)
+                .with_vertical_alignment(VerticalAlignment::Top),
+            ColumnConfig::new()
+                .with_width(8)
+                .with_vertical_alignment(VerticalAlignment::Middle),
+            ColumnConfig::new()
+                .with_width(8)
+                .with_vertical_alignment(VerticalAlignment::Bottom),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_vertical_alignment(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Top"));
+        assert!(result.contains("Middle"));
+        assert!(result.contains("Bottom"));
+        assert!(result.contains("Line1"));
+        assert!(result.contains("A"));
+        assert!(result.contains("X"));
+        
+        // Should handle vertical alignment properly
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert!(content_lines.len() >= 4); // Header + multi-line content with proper alignment
+    }
+
+    #[test]
+    fn test_vertical_alignment_with_wrapping() {
+        let data = TableData::new(vec![
+            vec!["Short".to_string(), "This is a very long text that will definitely wrap".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new()
+                .with_width(8)
+                .with_vertical_alignment(VerticalAlignment::Middle),
+            ColumnConfig::new()
+                .with_width(12)
+                .with_wrapping(WrapConfig::new(12))
+                .with_vertical_alignment(VerticalAlignment::Top),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_vertical_alignment(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Short"));
+        assert!(result.contains("This is a"));
+        assert!(result.contains("very long"));
+        
+        // Should combine wrapping and vertical alignment
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert!(content_lines.len() >= 3); // Multiple wrapped lines with vertical alignment
     }
 }
