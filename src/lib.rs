@@ -11,6 +11,8 @@ pub mod ansi;
 pub mod ansi_multiline;
 pub mod newline;
 pub mod vertical_multiline;
+pub mod spanning;
+pub mod spanned_renderer;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -27,6 +29,8 @@ pub use ansi::{AnsiSequence, parse_ansi_sequences, strip_ansi_sequences, ansi_di
 pub use ansi_multiline::render_table_with_ansi_wrapping;
 pub use newline::{split_lines, render_table_with_newlines, calculate_newline_column_widths};
 pub use vertical_multiline::render_table_with_vertical_alignment;
+pub use spanning::{CellSpan, SpannedCell, SpannedTableData, calculate_spanned_width, should_render_cell};
+pub use spanned_renderer::render_spanned_table;
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1072,5 +1076,150 @@ mod tests {
             .filter(|line| line.starts_with("│") && !line.contains("─"))
             .collect();
         assert!(content_lines.len() >= 3); // Multiple wrapped lines with vertical alignment
+    }
+
+    #[test]
+    fn test_cell_spanning_horizontal() {
+        let mut data = SpannedTableData::new(2, 3);
+        
+        // Set up table with horizontal spanning
+        data.set_cell(0, 0, SpannedCell::with_span("Header Spans Two".to_string(), CellSpan::horizontal(2))).unwrap();
+        data.set_cell(0, 2, SpannedCell::new("C".to_string())).unwrap();
+        data.set_cell(1, 0, SpannedCell::new("A".to_string())).unwrap();
+        data.set_cell(1, 1, SpannedCell::new("B".to_string())).unwrap();
+        data.set_cell(1, 2, SpannedCell::new("C".to_string())).unwrap();
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(10),
+            ColumnConfig::default().with_width(10),
+            ColumnConfig::default().with_width(10),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_spanned_table(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Header Spans Two"));
+        assert!(result.contains("A"));
+        assert!(result.contains("B"));
+        assert!(result.contains("C"));
+        
+        // Should have proper table structure
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines.len() >= 4);
+    }
+
+    #[test]
+    fn test_cell_spanning_vertical() {
+        let mut data = SpannedTableData::new(3, 2);
+        
+        // Set up table with vertical spanning
+        data.set_cell(0, 0, SpannedCell::with_span("Tall".to_string(), CellSpan::vertical(2))).unwrap();
+        data.set_cell(0, 1, SpannedCell::new("Top Right".to_string())).unwrap();
+        data.set_cell(1, 1, SpannedCell::new("Mid Right".to_string())).unwrap();
+        data.set_cell(2, 0, SpannedCell::new("Bottom Left".to_string())).unwrap();
+        data.set_cell(2, 1, SpannedCell::new("Bottom Right".to_string())).unwrap();
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(12),
+            ColumnConfig::default().with_width(12),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_spanned_table(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Tall"));
+        assert!(result.contains("Top Right"));
+        assert!(result.contains("Mid Right"));
+        assert!(result.contains("Bottom Left"));
+        assert!(result.contains("Bottom Right"));
+        
+        // Should render all 3 data rows
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert_eq!(content_lines.len(), 3);
+    }
+
+    #[test]
+    fn test_cell_spanning_mixed() {
+        let mut data = SpannedTableData::new(3, 3);
+        
+        // Complex spanning: 2x2 cell in top-left
+        data.set_cell(0, 0, SpannedCell::with_span("Big Cell".to_string(), CellSpan::new(2, 2))).unwrap();
+        data.set_cell(0, 2, SpannedCell::new("Top Right".to_string())).unwrap();
+        data.set_cell(1, 2, SpannedCell::new("Mid Right".to_string())).unwrap();
+        data.set_cell(2, 0, SpannedCell::new("Bottom 1".to_string())).unwrap();
+        data.set_cell(2, 1, SpannedCell::new("Bottom 2".to_string())).unwrap();
+        data.set_cell(2, 2, SpannedCell::new("Bottom 3".to_string())).unwrap();
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(10),
+            ColumnConfig::default().with_width(10),
+            ColumnConfig::default().with_width(10),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_spanned_table(&data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("Big Cell"));
+        assert!(result.contains("Top Right"));
+        assert!(result.contains("Bottom"));
+        
+        // Should properly handle mixed spans
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines.len() >= 5);
+    }
+
+    #[test]
+    fn test_spanned_table_from_regular() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            vec!["1".to_string(), "2".to_string(), "3".to_string()],
+        ]);
+        
+        let spanned_data = SpannedTableData::from_regular_table(&data);
+        assert_eq!(spanned_data.rows, 2);
+        assert_eq!(spanned_data.cols, 3);
+        assert_eq!(spanned_data.get_cell(0, 0).unwrap().content, "A");
+        assert_eq!(spanned_data.get_cell(1, 2).unwrap().content, "3");
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(8),
+            ColumnConfig::default().with_width(8),
+            ColumnConfig::default().with_width(8),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_spanned_table(&spanned_data, &border, &options, &column_configs).unwrap();
+        
+        assert!(result.contains("A"));
+        assert!(result.contains("B"));
+        assert!(result.contains("C"));
+        assert!(result.contains("1"));
+        assert!(result.contains("2"));
+        assert!(result.contains("3"));
+    }
+
+    #[test]
+    fn test_cell_span_utilities() {
+        assert_eq!(CellSpan::single().row_span, 1);
+        assert_eq!(CellSpan::single().col_span, 1);
+        assert!(!CellSpan::single().is_spanning());
+        
+        assert_eq!(CellSpan::horizontal(3).col_span, 3);
+        assert!(CellSpan::horizontal(3).is_spanning());
+        
+        assert_eq!(CellSpan::vertical(2).row_span, 2);
+        assert!(CellSpan::vertical(2).is_spanning());
+        
+        let big_span = CellSpan::new(3, 4);
+        assert!(big_span.is_spanning());
+        assert_eq!(big_span.row_span, 3);
+        assert_eq!(big_span.col_span, 4);
     }
 }
