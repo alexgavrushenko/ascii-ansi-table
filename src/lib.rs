@@ -13,6 +13,7 @@ pub mod newline;
 pub mod vertical_multiline;
 pub mod spanning;
 pub mod spanned_renderer;
+pub mod headers;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -31,6 +32,7 @@ pub use newline::{split_lines, render_table_with_newlines, calculate_newline_col
 pub use vertical_multiline::render_table_with_vertical_alignment;
 pub use spanning::{CellSpan, SpannedCell, SpannedTableData, calculate_spanned_width, should_render_cell};
 pub use spanned_renderer::render_spanned_table;
+pub use headers::{HeaderConfig, render_table_with_headers, default_header_config};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1221,5 +1223,164 @@ mod tests {
         assert!(big_span.is_spanning());
         assert_eq!(big_span.row_span, 3);
         assert_eq!(big_span.col_span, 4);
+    }
+
+    #[test]
+    fn test_header_support() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Age".to_string(), "City".to_string()],
+            vec!["Alice".to_string(), "30".to_string(), "New York".to_string()],
+            vec!["Bob".to_string(), "25".to_string(), "London".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(8),
+            ColumnConfig::default().with_width(5),
+            ColumnConfig::default().with_width(10),
+        ];
+        
+        let header_config = HeaderConfig::new()
+            .with_header()
+            .with_header_column_configs(vec![
+                ColumnConfig::default()
+                    .with_width(8)
+                    .with_alignment(Alignment::Center),
+                ColumnConfig::default()
+                    .with_width(5)
+                    .with_alignment(Alignment::Center),
+                ColumnConfig::default()
+                    .with_width(10)
+                    .with_alignment(Alignment::Center),
+            ]);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_headers(&data, &border, &options, &column_configs, &header_config).unwrap();
+        
+        assert!(result.contains("Name"));
+        assert!(result.contains("Age"));
+        assert!(result.contains("City"));
+        assert!(result.contains("Alice"));
+        assert!(result.contains("Bob"));
+        
+        // Should render headers with different styling
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines.len() >= 5); // Top border, header, separator, data rows, bottom border
+    }
+
+    #[test]
+    fn test_multi_row_headers() {
+        let data = TableData::new(vec![
+            vec!["Main Header".to_string(), "Secondary".to_string()],
+            vec!["Sub A".to_string(), "Sub B".to_string()],
+            vec!["Data 1".to_string(), "Value 1".to_string()],
+            vec!["Data 2".to_string(), "Value 2".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(12),
+            ColumnConfig::default().with_width(12),
+        ];
+        
+        let header_config = HeaderConfig::new()
+            .with_header_rows(2)
+            .with_header_column_configs(vec![
+                ColumnConfig::default()
+                    .with_width(12)
+                    .with_alignment(Alignment::Center),
+                ColumnConfig::default()
+                    .with_width(12)
+                    .with_alignment(Alignment::Center),
+            ]);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_headers(&data, &border, &options, &column_configs, &header_config).unwrap();
+        
+        assert!(result.contains("Main Header"));
+        assert!(result.contains("Sub A"));
+        assert!(result.contains("Data 1"));
+        assert!(result.contains("Data 2"));
+        
+        // Should handle multi-row headers properly
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│"))
+            .collect();
+        assert_eq!(content_lines.len(), 4); // 2 header rows + 2 data rows
+    }
+
+    #[test]
+    fn test_header_with_separator() {
+        let data = TableData::new(vec![
+            vec!["Header".to_string(), "Column".to_string()],
+            vec!["Data".to_string(), "Value".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(10),
+            ColumnConfig::default().with_width(10),
+        ];
+        
+        let separator_border = BorderChars {
+            horizontal: '=',
+            vertical: '│',
+            top_left: '├',
+            top_right: '┤',
+            bottom_left: '├',
+            bottom_right: '┤',
+            top_junction: '┼',
+            bottom_junction: '┼',
+        };
+        
+        let header_config = HeaderConfig::new()
+            .with_header()
+            .with_separator_border(separator_border);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_headers(&data, &border, &options, &column_configs, &header_config).unwrap();
+        
+        assert!(result.contains("Header"));
+        assert!(result.contains("Data"));
+        assert!(result.contains("=")); // Should use separator border
+    }
+
+    #[test]
+    fn test_default_header_config() {
+        let config = default_header_config();
+        assert!(config.has_header);
+        assert_eq!(config.header_row_count, 1);
+        assert!(!config.header_column_configs.is_empty());
+        assert_eq!(config.header_column_configs[0].alignment, Alignment::Center);
+    }
+
+    #[test]
+    fn test_no_header_config() {
+        let data = TableData::new(vec![
+            vec!["Row 1".to_string(), "Col 1".to_string()],
+            vec!["Row 2".to_string(), "Col 2".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::default().with_width(8),
+            ColumnConfig::default().with_width(8),
+        ];
+        
+        let header_config = HeaderConfig::new(); // No headers enabled
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_headers(&data, &border, &options, &column_configs, &header_config).unwrap();
+        
+        assert!(result.contains("Row 1"));
+        assert!(result.contains("Row 2"));
+        
+        // Should render as normal table without header separation
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│"))
+            .collect();
+        assert_eq!(content_lines.len(), 2);
     }
 }
