@@ -14,6 +14,7 @@ pub mod vertical_multiline;
 pub mod spanning;
 pub mod spanned_renderer;
 pub mod headers;
+pub mod column_arrays;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -33,6 +34,7 @@ pub use vertical_multiline::render_table_with_vertical_alignment;
 pub use spanning::{CellSpan, SpannedCell, SpannedTableData, calculate_spanned_width, should_render_cell};
 pub use spanned_renderer::render_spanned_table;
 pub use headers::{HeaderConfig, render_table_with_headers, default_header_config};
+pub use column_arrays::{ColumnConfigArray, ColumnArrayBuilder, render_table_with_column_array, patterns};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1382,5 +1384,196 @@ mod tests {
             .filter(|line| line.starts_with("│"))
             .collect();
         assert_eq!(content_lines.len(), 2);
+    }
+
+    #[test]
+    fn test_column_config_arrays() {
+        let data = TableData::new(vec![
+            vec!["Description".to_string(), "Amount".to_string(), "Total".to_string()],
+            vec!["Item A".to_string(), "100.50".to_string(), "100.50".to_string()],
+            vec!["Item B".to_string(), "75.25".to_string(), "175.75".to_string()],
+        ]);
+        
+        let column_array = ColumnArrayBuilder::new()
+            .left_column(15)    // Description - left aligned
+            .right_column(10)   // Amount - right aligned
+            .right_column(10)   // Total - right aligned
+            .build();
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("Description"));
+        assert!(result.contains("Amount"));
+        assert!(result.contains("Total"));
+        assert!(result.contains("Item A"));
+        assert!(result.contains("100.50"));
+        assert!(result.contains("175.75"));
+    }
+
+    #[test]
+    fn test_financial_column_pattern() {
+        let data = TableData::new(vec![
+            vec!["Product".to_string(), "Price".to_string(), "Qty".to_string(), "Total".to_string()],
+            vec!["Widget".to_string(), "$10.99".to_string(), "5".to_string(), "$54.95".to_string()],
+            vec!["Gadget".to_string(), "$25.50".to_string(), "2".to_string(), "$51.00".to_string()],
+        ]);
+        
+        let widths = [12, 8, 5, 10];
+        let column_array = patterns::financial_columns(&widths);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("Product"));
+        assert!(result.contains("Widget"));
+        assert!(result.contains("$10.99"));
+        assert!(result.contains("$54.95"));
+        
+        // Should have proper alignment (first column left, others right)
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines.len() >= 4);
+    }
+
+    #[test]
+    fn test_repeating_column_pattern() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string(), "C".to_string(), "D".to_string(), "E".to_string()],
+            vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()],
+        ]);
+        
+        let pattern = vec![
+            ColumnConfig::new().with_width(6).with_alignment(Alignment::Left),
+            ColumnConfig::new().with_width(6).with_alignment(Alignment::Right),
+        ];
+        
+        let column_array = patterns::repeating_pattern(pattern);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("A"));
+        assert!(result.contains("B"));
+        assert!(result.contains("C"));
+        assert!(result.contains("D"));
+        assert!(result.contains("E"));
+        
+        // Should handle repeating pattern across all columns
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│") && !line.contains("─"))
+            .collect();
+        assert_eq!(content_lines.len(), 2);
+    }
+
+    #[test]
+    fn test_mixed_content_pattern() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Score".to_string(), "Grade".to_string(), "Points".to_string()],
+            vec!["Alice".to_string(), "95".to_string(), "A".to_string(), "950".to_string()],
+            vec!["Bob".to_string(), "87".to_string(), "B+".to_string(), "870".to_string()],
+        ]);
+        
+        let widths = [10, 8, 8, 8];
+        let column_array = patterns::mixed_content(&widths);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("Name"));
+        assert!(result.contains("Alice"));
+        assert!(result.contains("95"));
+        assert!(result.contains("A"));
+        assert!(result.contains("950"));
+    }
+
+    #[test]
+    fn test_centered_headers_pattern() {
+        let data = TableData::new(vec![
+            vec!["Header 1".to_string(), "Header 2".to_string(), "Header 3".to_string()],
+            vec!["Data 1".to_string(), "Data 2".to_string(), "Data 3".to_string()],
+        ]);
+        
+        let column_array = patterns::centered_headers(12, 3);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("Header 1"));
+        assert!(result.contains("Header 2"));
+        assert!(result.contains("Header 3"));
+        assert!(result.contains("Data 1"));
+        assert!(result.contains("Data 2"));
+        assert!(result.contains("Data 3"));
+        
+        // All columns should be centered
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│"))
+            .collect();
+        assert_eq!(content_lines.len(), 2);
+    }
+
+    #[test]
+    fn test_column_array_with_custom_default() {
+        let data = TableData::new(vec![
+            vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            vec!["1".to_string(), "2".to_string(), "3".to_string()],
+        ]);
+        
+        let custom_default = ColumnConfig::new()
+            .with_width(8)
+            .with_alignment(Alignment::Center);
+            
+        let column_array = ColumnConfigArray::new(vec![])
+            .with_default_config(custom_default);
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        let result = render_table_with_column_array(&data, &border, &options, &column_array).unwrap();
+        
+        assert!(result.contains("A"));
+        assert!(result.contains("B"));
+        assert!(result.contains("C"));
+        
+        // Should use custom default for all columns
+        let content_lines: Vec<&str> = result
+            .lines()
+            .filter(|line| line.starts_with("│"))
+            .collect();
+        assert_eq!(content_lines.len(), 2);
+    }
+
+    #[test]
+    fn test_column_array_builder_methods() {
+        let array = ColumnArrayBuilder::new()
+            .left_column(10)
+            .center_column(12)
+            .right_column(14)
+            .with_repeat_pattern()
+            .build();
+        
+        assert_eq!(array.configs.len(), 3);
+        assert!(array.repeat_pattern);
+        
+        // Test the configurations
+        assert_eq!(array.get_config(0).width, Some(10));
+        assert_eq!(array.get_config(0).alignment, Alignment::Left);
+        
+        assert_eq!(array.get_config(1).width, Some(12));
+        assert_eq!(array.get_config(1).alignment, Alignment::Center);
+        
+        assert_eq!(array.get_config(2).width, Some(14));
+        assert_eq!(array.get_config(2).alignment, Alignment::Right);
+        
+        // Test repeat pattern
+        assert_eq!(array.get_config(3).alignment, Alignment::Left);   // Cycles back to first
+        assert_eq!(array.get_config(4).alignment, Alignment::Center); // Cycles to second
+        assert_eq!(array.get_config(5).alignment, Alignment::Right);  // Cycles to third
     }
 }
