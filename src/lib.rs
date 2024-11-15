@@ -15,6 +15,7 @@ pub mod spanning;
 pub mod spanned_renderer;
 pub mod headers;
 pub mod column_arrays;
+pub mod streaming;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -35,6 +36,8 @@ pub use spanning::{CellSpan, SpannedCell, SpannedTableData, calculate_spanned_wi
 pub use spanned_renderer::render_spanned_table;
 pub use headers::{HeaderConfig, render_table_with_headers, default_header_config};
 pub use column_arrays::{ColumnConfigArray, ColumnArrayBuilder, render_table_with_column_array, patterns};
+pub use streaming::{StreamingTableConfig, StreamingTableWriter, StreamingTableBuilder, 
+                   stream_table_to_writer, stream_table_to_stdout};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1575,5 +1578,154 @@ mod tests {
         assert_eq!(array.get_config(3).alignment, Alignment::Left);   // Cycles back to first
         assert_eq!(array.get_config(4).alignment, Alignment::Center); // Cycles to second
         assert_eq!(array.get_config(5).alignment, Alignment::Right);  // Cycles to third
+    }
+
+    #[test]
+    fn test_streaming_table_writer() {
+        use std::io::Cursor;
+        
+        let buffer = Vec::new();
+        let cursor = Cursor::new(buffer);
+        
+        let config = StreamingTableConfig::new()
+            .with_column_configs(vec![
+                ColumnConfig::new().with_width(10),
+                ColumnConfig::new().with_width(8),
+            ]);
+        
+        let mut writer = StreamingTableWriter::new(cursor, config);
+        writer.initialize(vec![10, 8]).unwrap();
+        
+        writer.add_row(&["Product".to_string(), "Price".to_string()]).unwrap();
+        writer.add_row(&["Widget".to_string(), "$19.99".to_string()]).unwrap();
+        writer.add_row(&["Gadget".to_string(), "$29.99".to_string()]).unwrap();
+        
+        let result_cursor = writer.finalize().unwrap();
+        let output = String::from_utf8(result_cursor.into_inner()).unwrap();
+        
+        assert!(output.contains("Product"));
+        assert!(output.contains("Widget"));
+        assert!(output.contains("$19.99"));
+        assert!(output.contains("Gadget"));
+        assert!(output.contains("$29.99"));
+        
+        // Should have proper table structure
+        assert!(output.contains("│"));
+        assert!(output.contains("┌"));
+        assert!(output.contains("└"));
+    }
+
+    #[test]
+    fn test_streaming_with_iterator() {
+        use std::io::Cursor;
+        
+        let buffer = Vec::new();
+        let cursor = Cursor::new(buffer);
+        
+        let rows = vec![
+            vec!["Name".to_string(), "Age".to_string(), "City".to_string()],
+            vec!["Alice".to_string(), "30".to_string(), "New York".to_string()],
+            vec!["Bob".to_string(), "25".to_string(), "London".to_string()],
+            vec!["Carol".to_string(), "35".to_string(), "Paris".to_string()],
+        ];
+        
+        let config = StreamingTableConfig::default();
+        let result_cursor = stream_table_to_writer(cursor, rows.into_iter(), config).unwrap();
+        let output = String::from_utf8(result_cursor.into_inner()).unwrap();
+        
+        assert!(output.contains("Name"));
+        assert!(output.contains("Alice"));
+        assert!(output.contains("Bob"));
+        assert!(output.contains("Carol"));
+        assert!(output.contains("New York"));
+        assert!(output.contains("London"));
+        assert!(output.contains("Paris"));
+    }
+
+    #[test]
+    fn test_streaming_builder() {
+        use std::io::Cursor;
+        
+        let buffer = Vec::new();
+        let cursor = Cursor::new(buffer);
+        
+        let rows = vec![
+            vec!["Header 1".to_string(), "Header 2".to_string()],
+            vec!["Data 1".to_string(), "Data 2".to_string()],
+            vec!["Data 3".to_string(), "Data 4".to_string()],
+        ];
+        
+        let result_cursor = StreamingTableBuilder::new()
+            .with_border(BorderChars::default())
+            .with_options(RenderOptions::default())
+            .with_buffer_size(1024)
+            .with_auto_flush()
+            .stream_to_writer(cursor, rows.into_iter())
+            .unwrap();
+            
+        let output = String::from_utf8(result_cursor.into_inner()).unwrap();
+        
+        assert!(output.contains("Header 1"));
+        assert!(output.contains("Header 2"));
+        assert!(output.contains("Data 1"));
+        assert!(output.contains("Data 3"));
+    }
+
+    #[test]
+    fn test_streaming_large_dataset() {
+        use std::io::Cursor;
+        
+        let buffer = Vec::new();
+        let cursor = Cursor::new(buffer);
+        
+        // Generate a large dataset
+        let rows: Vec<Vec<String>> = (0..100)
+            .map(|i| vec![
+                format!("Item {}", i),
+                format!("Value {}", i * 10),
+                format!("Category {}", i % 5),
+            ])
+            .collect();
+        
+        let config = StreamingTableConfig::new()
+            .with_buffer_size(512) // Small buffer to test frequent flushing
+            .with_flush_on_row();
+        
+        let result_cursor = stream_table_to_writer(cursor, rows.into_iter(), config).unwrap();
+        let output = String::from_utf8(result_cursor.into_inner()).unwrap();
+        
+        assert!(output.contains("Item 0"));
+        assert!(output.contains("Item 99"));
+        assert!(output.contains("Value 990"));
+        assert!(output.contains("Category 4"));
+        
+        // Should handle large dataset without issues
+        let line_count = output.lines().count();
+        assert!(line_count > 100); // Should have many lines due to borders and data
+    }
+
+    #[test]
+    fn test_streaming_auto_column_detection() {
+        use std::io::Cursor;
+        
+        let buffer = Vec::new();
+        let cursor = Cursor::new(buffer);
+        
+        let config = StreamingTableConfig::default();
+        let mut writer = StreamingTableWriter::new(cursor, config);
+        
+        // Don't call initialize - let first row determine columns
+        writer.add_row(&["Auto".to_string(), "Detected".to_string(), "Columns".to_string()]).unwrap();
+        writer.add_row(&["Row".to_string(), "Two".to_string(), "Data".to_string()]).unwrap();
+        
+        let result_cursor = writer.finalize().unwrap();
+        let output = String::from_utf8(result_cursor.into_inner()).unwrap();
+        
+        assert!(output.contains("Auto"));
+        assert!(output.contains("Detected"));
+        assert!(output.contains("Columns"));
+        assert!(output.contains("Row"));
+        assert!(output.contains("Two"));
+        assert!(output.contains("Data"));
     }
 }
