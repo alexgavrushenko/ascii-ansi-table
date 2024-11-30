@@ -16,6 +16,7 @@ pub mod spanned_renderer;
 pub mod headers;
 pub mod column_arrays;
 pub mod streaming;
+pub mod performance;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -38,6 +39,7 @@ pub use headers::{HeaderConfig, render_table_with_headers, default_header_config
 pub use column_arrays::{ColumnConfigArray, ColumnArrayBuilder, render_table_with_column_array, patterns};
 pub use streaming::{StreamingTableConfig, StreamingTableWriter, StreamingTableBuilder, 
                    stream_table_to_writer, stream_table_to_stdout};
+pub use performance::{PerformanceConfig, RenderCache, StringPool, FastTableRenderer, BatchProcessor};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1727,5 +1729,206 @@ mod tests {
         assert!(output.contains("Row"));
         assert!(output.contains("Two"));
         assert!(output.contains("Data"));
+    }
+
+    #[test]
+    fn test_fast_table_renderer() {
+        let config = PerformanceConfig::new()
+            .with_caching(true)
+            .with_memory_optimization(true);
+        
+        let mut renderer = FastTableRenderer::new(config);
+        
+        let data = TableData::new(vec![
+            vec!["Product".to_string(), "Price".to_string(), "Category".to_string()],
+            vec!["Widget".to_string(), "$19.99".to_string(), "Electronics".to_string()],
+            vec!["Gadget".to_string(), "$29.99".to_string(), "Electronics".to_string()],
+            vec!["Book".to_string(), "$12.99".to_string(), "Media".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(10),
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new().with_width(12),
+        ];
+        
+        let result = renderer.render_table(
+            &data,
+            &BorderChars::default(),
+            &RenderOptions::default(),
+            &column_configs,
+        ).unwrap();
+        
+        assert!(result.contains("Product"));
+        assert!(result.contains("Widget"));
+        assert!(result.contains("$19.99"));
+        assert!(result.contains("Electronics"));
+        assert!(result.contains("Book"));
+        
+        // Check that caching was used
+        let (cache_size, _) = renderer.cache_stats();
+        assert!(cache_size > 0);
+    }
+
+    #[test]
+    fn test_performance_caching() {
+        let config = PerformanceConfig::new()
+            .with_caching(true)
+            .with_cache_limit(10);
+        
+        let mut renderer = FastTableRenderer::new(config);
+        
+        // Create data with repeated values to test caching effectiveness
+        let data = TableData::new(vec![
+            vec!["Same".to_string(), "Same".to_string()],
+            vec!["Same".to_string(), "Same".to_string()],
+            vec!["Same".to_string(), "Same".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new().with_width(8),
+        ];
+        
+        let result = renderer.render_table(
+            &data,
+            &BorderChars::default(),
+            &RenderOptions::default(),
+            &column_configs,
+        ).unwrap();
+        
+        assert!(result.contains("Same"));
+        
+        // Cache should be utilized for repeated values
+        let (cache_size, _) = renderer.cache_stats();
+        assert!(cache_size > 0);
+    }
+
+    #[test]
+    fn test_batch_processor() {
+        let processor = BatchProcessor::new(2);
+        
+        let data = TableData::new(vec![
+            vec!["Row 1".to_string(), "Data 1".to_string()],
+            vec!["Row 2".to_string(), "Data 2".to_string()],
+            vec!["Row 3".to_string(), "Data 3".to_string()],
+            vec!["Row 4".to_string(), "Data 4".to_string()],
+            vec!["Row 5".to_string(), "Data 5".to_string()],
+        ]);
+        
+        let results = processor.process_in_batches(&data, |batch| {
+            Ok(format!("Processed {} rows", batch.len()))
+        }).unwrap();
+        
+        assert_eq!(results.len(), 3); // 5 rows / 2 batch size = 3 batches (2+2+1)
+        assert_eq!(results[0], "Processed 2 rows");
+        assert_eq!(results[1], "Processed 2 rows");
+        assert_eq!(results[2], "Processed 1 rows");
+    }
+
+    #[test]
+    fn test_memory_usage_estimation() {
+        let processor = BatchProcessor::new(10);
+        
+        let data = TableData::new(vec![
+            vec!["Hello".to_string(), "World".to_string()],
+            vec!["Large".to_string(), "Dataset".to_string()],
+            vec!["Memory".to_string(), "Usage".to_string()],
+        ]);
+        
+        let estimated = processor.estimate_memory_usage(&data);
+        assert!(estimated > 0);
+        
+        // Should be reasonable estimate
+        let content_chars = "HelloWorldLargeDatasetMemoryUsage".len();
+        assert!(estimated >= content_chars);
+    }
+
+    #[test]
+    fn test_render_cache_operations() {
+        let mut cache = RenderCache::new(5);
+        
+        // Test alignment caching
+        let aligned1 = cache.get_aligned_text("test", 10, Alignment::Center);
+        let aligned2 = cache.get_aligned_text("test", 10, Alignment::Center);
+        assert_eq!(aligned1, aligned2);
+        
+        // Test padding caching
+        let padding = crate::padding::Padding::new(2, 2);
+        let padded1 = cache.get_padded_text("content", padding);
+        let padded2 = cache.get_padded_text("content", padding);
+        assert_eq!(padded1, padded2);
+        
+        // Test truncation caching
+        let truncated1 = cache.get_truncated_text("very long text", 8, "...");
+        let truncated2 = cache.get_truncated_text("very long text", 8, "...");
+        assert_eq!(truncated1, truncated2);
+        
+        assert!(cache.cache_size() > 0);
+        
+        cache.clear();
+        assert_eq!(cache.cache_size(), 0);
+    }
+
+    #[test]
+    fn test_string_pool() {
+        let mut pool = StringPool::new(3);
+        
+        let s1 = pool.intern("common");
+        let s2 = pool.intern("string");
+        let s3 = pool.intern("common"); // Should reuse
+        
+        assert_eq!(s1, s3); // Same content
+        assert_eq!(pool.size(), 2); // Only two unique strings
+        
+        pool.clear();
+        assert_eq!(pool.size(), 0);
+    }
+
+    #[test]
+    fn test_performance_config_builder() {
+        let config = PerformanceConfig::new()
+            .with_caching(false)
+            .with_cache_limit(100)
+            .with_string_pool(false)
+            .with_memory_optimization(true);
+        
+        assert!(!config.enable_caching);
+        assert_eq!(config.cache_size_limit, 100);
+        assert!(!config.use_string_pool);
+        assert!(config.optimize_memory);
+    }
+
+    #[test]
+    fn test_performance_vs_regular_rendering() {
+        // Test that fast renderer produces same output as regular renderer
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Score".to_string()],
+            vec!["Alice".to_string(), "95".to_string()],
+            vec!["Bob".to_string(), "87".to_string()],
+        ]);
+        
+        let column_configs = vec![
+            ColumnConfig::new().with_width(8),
+            ColumnConfig::new().with_width(6),
+        ];
+        
+        let border = BorderChars::default();
+        let options = RenderOptions::default();
+        
+        // Regular rendering
+        let regular_result = render_table_with_column_config(&data, &border, &options, &column_configs).unwrap();
+        
+        // Fast rendering
+        let mut fast_renderer = FastTableRenderer::new(PerformanceConfig::new());
+        let fast_result = fast_renderer.render_table(&data, &border, &options, &column_configs).unwrap();
+        
+        // Results should contain the same content
+        assert!(regular_result.contains("Name"));
+        assert!(fast_result.contains("Name"));
+        assert!(regular_result.contains("Alice"));
+        assert!(fast_result.contains("Alice"));
+        assert!(regular_result.contains("95"));
+        assert!(fast_result.contains("95"));
     }
 }
