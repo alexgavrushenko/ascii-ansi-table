@@ -17,6 +17,7 @@ pub mod headers;
 pub mod column_arrays;
 pub mod streaming;
 pub mod performance;
+pub mod single_line;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -40,6 +41,8 @@ pub use column_arrays::{ColumnConfigArray, ColumnArrayBuilder, render_table_with
 pub use streaming::{StreamingTableConfig, StreamingTableWriter, StreamingTableBuilder, 
                    stream_table_to_writer, stream_table_to_stdout};
 pub use performance::{PerformanceConfig, RenderCache, StringPool, FastTableRenderer, BatchProcessor};
+pub use single_line::{SingleLineConfig, render_single_line_table, render_compact_single_line,
+                     render_key_value_pairs, render_transposed_single_line, SummaryRenderer};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -1930,5 +1933,195 @@ mod tests {
         assert!(fast_result.contains("Alice"));
         assert!(regular_result.contains("95"));
         assert!(fast_result.contains("95"));
+    }
+
+    #[test]
+    fn test_single_line_rendering() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Age".to_string(), "Department".to_string()],
+            vec!["Alice".to_string(), "30".to_string(), "Engineering".to_string()],
+            vec!["Bob".to_string(), "25".to_string(), "Marketing".to_string()],
+            vec!["Carol".to_string(), "35".to_string(), "Sales".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new();
+        let result = render_single_line_table(&data, &config).unwrap();
+        
+        assert!(result.contains("Name | Age | Department"));
+        assert!(result.contains("Alice | 30 | Engineering"));
+        assert!(result.contains("Bob | 25 | Marketing"));
+        assert!(result.contains("Carol | 35 | Sales"));
+        
+        // Should have multiple lines
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 4);
+    }
+
+    #[test]
+    fn test_csv_single_line_format() {
+        let data = TableData::new(vec![
+            vec!["Product".to_string(), "Price".to_string(), "In Stock".to_string()],
+            vec!["Widget".to_string(), "$19.99".to_string(), "Yes".to_string()],
+            vec!["Gadget".to_string(), "$29.99".to_string(), "No".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::csv();
+        let result = render_single_line_table(&data, &config).unwrap();
+        
+        assert!(result.contains("\"Product\",\"Price\",\"In Stock\""));
+        assert!(result.contains("\"Widget\",\"$19.99\",\"Yes\""));
+        assert!(result.contains("\"Gadget\",\"$29.99\",\"No\""));
+    }
+
+    #[test]
+    fn test_compact_single_line() {
+        let data = TableData::new(vec![
+            vec!["Row1Col1".to_string(), "Row1Col2".to_string()],
+            vec!["Row2Col1".to_string(), "Row2Col2".to_string()],
+            vec!["Row3Col1".to_string(), "Row3Col2".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new();
+        let result = render_compact_single_line(&data, &config).unwrap();
+        
+        // Should be all on one line
+        assert!(!result.contains('\n'));
+        assert!(result.contains("Row1Col1 | Row1Col2"));
+        assert!(result.contains("Row2Col1 | Row2Col2"));
+        assert!(result.contains("Row3Col1 | Row3Col2"));
+    }
+
+    #[test]
+    fn test_key_value_pairs() {
+        let data = TableData::new(vec![
+            vec!["Attribute".to_string(), "Value".to_string(), "Unit".to_string()],
+            vec!["Height".to_string(), "180".to_string(), "cm".to_string()],
+            vec!["Weight".to_string(), "75".to_string(), "kg".to_string()],
+            vec!["Age".to_string(), "25".to_string(), "years".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new().without_headers();
+        let result = render_key_value_pairs(&data, &config).unwrap();
+        
+        assert!(result.contains("Height: 180 | cm"));
+        assert!(result.contains("Weight: 75 | kg"));
+        assert!(result.contains("Age: 25 | years"));
+        
+        // Should not contain the header row
+        assert!(!result.contains("Attribute: Value"));
+    }
+
+    #[test]
+    fn test_transposed_single_line() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Alice".to_string(), "Bob".to_string(), "Carol".to_string()],
+            vec!["Age".to_string(), "30".to_string(), "25".to_string(), "35".to_string()],
+            vec!["City".to_string(), "NY".to_string(), "LA".to_string(), "SF".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new();
+        let result = render_transposed_single_line(&data, &config).unwrap();
+        
+        // Columns should become rows
+        assert!(result.contains("Name | Alice | Bob | Carol"));
+        assert!(result.contains("Age | 30 | 25 | 35"));
+        assert!(result.contains("City | NY | LA | SF"));
+        
+        let lines: Vec<&str> = result.lines().collect();
+        assert_eq!(lines.len(), 4); // 4 columns become 4 rows
+    }
+
+    #[test]
+    fn test_field_width_truncation() {
+        let data = TableData::new(vec![
+            vec!["This is a very long field that should be truncated".to_string(), "Short".to_string()],
+            vec!["Another extremely long field name".to_string(), "Brief".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new().with_max_field_width(15);
+        let result = render_single_line_table(&data, &config).unwrap();
+        
+        assert!(result.contains("This is a ve...")); // Truncated
+        assert!(result.contains("Another extr...")); // Truncated  
+        assert!(result.contains("Short")); // Not truncated
+        assert!(result.contains("Brief")); // Not truncated
+    }
+
+    #[test]
+    fn test_quote_handling() {
+        let data = TableData::new(vec![
+            vec!["Field with \"quotes\" inside".to_string(), "Normal field".to_string()],
+            vec!["Another \"quoted\" field".to_string(), "Regular".to_string()],
+        ]);
+        
+        let config = SingleLineConfig::new().with_quotes('"');
+        let result = render_single_line_table(&data, &config).unwrap();
+        
+        // Should escape quotes inside quoted fields
+        assert!(result.contains("\"Field with \\\"quotes\\\" inside\""));
+        assert!(result.contains("\"Another \\\"quoted\\\" field\""));
+        assert!(result.contains("\"Normal field\""));
+        assert!(result.contains("\"Regular\""));
+    }
+
+    #[test]
+    fn test_summary_statistics() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Score".to_string(), "Grade".to_string()],
+            vec!["Alice".to_string(), "95".to_string(), "A".to_string()],
+            vec!["Bob".to_string(), "".to_string(), "B".to_string()], // Empty score
+            vec!["Carol".to_string(), "87".to_string(), "B+".to_string()],
+            vec!["Dave".to_string(), "92".to_string(), "A-".to_string()],
+        ]);
+        
+        let stats = SummaryRenderer::render_stats(&data);
+        
+        assert!(stats.contains("5 rows"));
+        assert!(stats.contains("3 columns"));
+        assert!(stats.contains("15 total cells"));
+        assert!(stats.contains("1 empty")); // One empty score
+        assert!(stats.contains("avg length:"));
+    }
+
+    #[test]
+    fn test_column_statistics() {
+        let data = TableData::new(vec![
+            vec!["Short".to_string(), "Very Long Column Content".to_string()],
+            vec!["A".to_string(), "Medium Length".to_string()],
+            vec!["".to_string(), "Brief".to_string()], // Empty first column
+            vec!["Medium".to_string(), "X".to_string()],
+        ]);
+        
+        let result = SummaryRenderer::render_column_stats(&data).unwrap();
+        
+        assert!(result.contains("Col0:"));
+        assert!(result.contains("Col1:"));
+        assert!(result.contains("empty=1")); // First column has one empty cell
+        assert!(result.contains("max="));
+        assert!(result.contains("min="));
+        assert!(result.contains("avg="));
+    }
+
+    #[test]
+    fn test_different_single_line_formats() {
+        let data = TableData::new(vec![
+            vec!["Name".to_string(), "Value".to_string()],
+            vec!["Test".to_string(), "Data".to_string()],
+        ]);
+        
+        // Test TSV format
+        let tsv_result = render_single_line_table(&data, &SingleLineConfig::tsv()).unwrap();
+        assert!(tsv_result.contains("Test\tData")); // Tab separated
+        assert!(!tsv_result.contains("Name")); // No headers in TSV
+        
+        // Test compact format
+        let compact_result = render_single_line_table(&data, &SingleLineConfig::compact()).unwrap();
+        assert!(compact_result.contains("Name Value"));
+        assert!(compact_result.contains("Test Data"));
+        
+        // Test JSON array style
+        let json_result = render_single_line_table(&data, &SingleLineConfig::json_array()).unwrap();
+        assert!(json_result.contains("\"Name\", \"Value\""));
+        assert!(json_result.contains("\"Test\", \"Data\""));
     }
 }
