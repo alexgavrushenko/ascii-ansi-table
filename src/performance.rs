@@ -118,7 +118,7 @@ impl RenderCache {
         
         let config = crate::truncation::TruncationConfig::new()
             .with_max_width(max_width)
-            .with_ellipsis(ellipsis.to_string());
+            .with_ellipsis(ellipsis);
             
         let result = crate::truncation::truncate_text(text, &config);
         
@@ -218,7 +218,8 @@ impl FastTableRenderer {
         let mut column_widths = Vec::with_capacity(data.column_count());
         
         for i in 0..data.column_count() {
-            let config = column_configs.get(i).unwrap_or(&crate::alignment::ColumnConfig::default());
+            let default_config = crate::alignment::ColumnConfig::default();
+            let config = column_configs.get(i).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[i]);
             let total_width = content_width + config.padding.total();
             column_widths.push(total_width);
@@ -278,7 +279,8 @@ impl FastTableRenderer {
         result.push(border.vertical);
         
         for (i, cell) in row.iter().enumerate() {
-            let config = column_configs.get(i).unwrap_or(&crate::alignment::ColumnConfig::default());
+            let default_config = crate::alignment::ColumnConfig::default();
+            let config = column_configs.get(i).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[i]);
             
             // Process cell content with caching if enabled

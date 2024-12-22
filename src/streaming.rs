@@ -65,11 +65,12 @@ pub struct StreamingTableWriter<W: Write> {
 
 impl<W: Write> StreamingTableWriter<W> {
     pub fn new(writer: W, config: StreamingTableConfig) -> Self {
+        let buffer_size = config.buffer_size;
         Self {
             writer,
             config,
             column_widths: Vec::new(),
-            buffer: String::with_capacity(config.buffer_size),
+            buffer: String::with_capacity(buffer_size),
             header_written: false,
             row_count: 0,
             column_count: 0,
@@ -210,8 +211,9 @@ impl<W: Write> StreamingTableWriter<W> {
         self.buffer.push(self.config.border.vertical);
         
         for (i, cell) in row.iter().enumerate() {
+            let default_config = crate::alignment::ColumnConfig::default();
             let config = self.config.column_configs.get(i)
-                .unwrap_or(&crate::alignment::ColumnConfig::default());
+                .unwrap_or(&default_config);
             let content_width = self.column_widths[i];
             
             // Apply truncation, alignment, and padding

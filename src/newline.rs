@@ -45,7 +45,8 @@ pub fn render_table_with_newlines(
         
         // Process each cell to handle newlines
         for (col_idx, cell) in row.iter().enumerate() {
-            let config = column_configs.get(col_idx).unwrap_or(&ColumnConfig::default());
+            let default_config = ColumnConfig::default();
+            let config = column_configs.get(col_idx).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[col_idx]);
             
             // Split cell content by newlines
@@ -64,8 +65,9 @@ pub fn render_table_with_newlines(
         // Normalize all columns to same height by padding with empty strings
         for col_lines in &mut row_lines {
             while col_lines.len() < max_height {
+                let default_config = ColumnConfig::default();
                 let config = column_configs.get(row_lines.iter().position(|x| std::ptr::eq(x, col_lines)).unwrap_or(0))
-                    .unwrap_or(&ColumnConfig::default());
+                    .unwrap_or(&default_config);
                 let content_width = config.width.unwrap_or(auto_widths[col_lines.len()]);
                 col_lines.push(" ".repeat(content_width));
             }
@@ -77,7 +79,8 @@ pub fn render_table_with_newlines(
     // Calculate final column widths including padding
     let mut column_widths = Vec::new();
     for i in 0..data.column_count() {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -105,7 +108,8 @@ pub fn render_table_with_newlines(
             result.push(border.vertical);
             
             for (col_idx, col_lines) in row_lines.iter().enumerate() {
-                let config = column_configs.get(col_idx).unwrap_or(&ColumnConfig::default());
+                let default_config = ColumnConfig::default();
+                let config = column_configs.get(col_idx).unwrap_or(&default_config);
                 
                 let cell_content = col_lines.get(line_idx).unwrap_or(&String::new());
                 let padded_cell = apply_padding(cell_content, config.padding);

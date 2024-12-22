@@ -30,7 +30,8 @@ pub fn render_spanned_table(
     // Calculate final column widths including padding
     let mut column_widths = Vec::new();
     for i in 0..data.cols {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -121,7 +122,8 @@ fn render_data_row(
     while col_idx < data.cols {
         if let Some(cell) = data.get_cell(row_idx, col_idx) {
             if should_render_cell(cell) {
-                let config = column_configs.get(col_idx).unwrap_or(&ColumnConfig::default());
+                let default_config = ColumnConfig::default();
+                let config = column_configs.get(col_idx).unwrap_or(&default_config);
                 
                 // Calculate available width for this cell
                 let available_width = if cell.span.col_span > 1 {
@@ -129,7 +131,8 @@ fn render_data_row(
                     let mut total_width = 0;
                     for i in col_idx..col_idx + cell.span.col_span {
                         if i < column_widths.len() {
-                            let col_config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+                            let default_config = ColumnConfig::default();
+                            let col_config = column_configs.get(i).unwrap_or(&default_config);
                             let content_width = col_config.width.unwrap_or(column_widths[i] - col_config.padding.total());
                             total_width += content_width;
                             if i > col_idx {

@@ -27,7 +27,8 @@ pub fn render_table_with_wrapping(
         
         // First, wrap all cells and calculate max height
         for (col_idx, cell) in row.iter().enumerate() {
-            let config = column_configs.get(col_idx).unwrap_or(&ColumnConfig::default());
+            let default_config = ColumnConfig::default();
+            let config = column_configs.get(col_idx).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[col_idx]);
             
             // Apply truncation first
@@ -57,7 +58,8 @@ pub fn render_table_with_wrapping(
     // Calculate final column widths including padding
     let mut column_widths = Vec::new();
     for i in 0..data.column_count() {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -85,7 +87,8 @@ pub fn render_table_with_wrapping(
             result.push(border.vertical);
             
             for (col_idx, col_lines) in row_lines.iter().enumerate() {
-                let config = column_configs.get(col_idx).unwrap_or(&ColumnConfig::default());
+                let default_config = ColumnConfig::default();
+                let config = column_configs.get(col_idx).unwrap_or(&default_config);
                 let content_width = config.width.unwrap_or(auto_widths[col_idx]);
                 
                 let cell_content = col_lines.get(line_idx).unwrap_or(&String::new());

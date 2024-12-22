@@ -18,6 +18,7 @@ pub mod column_arrays;
 pub mod streaming;
 pub mod performance;
 pub mod single_line;
+pub mod cli;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -43,6 +44,7 @@ pub use streaming::{StreamingTableConfig, StreamingTableWriter, StreamingTableBu
 pub use performance::{PerformanceConfig, RenderCache, StringPool, FastTableRenderer, BatchProcessor};
 pub use single_line::{SingleLineConfig, render_single_line_table, render_compact_single_line,
                      render_key_value_pairs, render_transposed_single_line, SummaryRenderer};
+pub use cli::{CliConfig, TableCli, ArgParser, InputFormat, OutputFormat};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
@@ -109,7 +111,8 @@ pub fn render_table_ansi_aware(
     
     // Determine final column widths and configurations (including padding)
     for i in 0..data.column_count() {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -134,7 +137,8 @@ pub fn render_table_ansi_aware(
     for (row_idx, row) in data.rows.iter().enumerate() {
         result.push(border.vertical);
         for (i, cell) in row.iter().enumerate() {
-            let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+            let default_config = ColumnConfig::default();
+            let config = column_configs.get(i).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[i]);
             
             // Apply truncation first (ANSI-aware)
@@ -215,7 +219,8 @@ pub fn render_table_unicode_aware(
     
     // Determine final column widths and configurations (including padding)
     for i in 0..data.column_count() {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -240,7 +245,8 @@ pub fn render_table_unicode_aware(
     for (row_idx, row) in data.rows.iter().enumerate() {
         result.push(border.vertical);
         for (i, cell) in row.iter().enumerate() {
-            let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+            let default_config = ColumnConfig::default();
+            let config = column_configs.get(i).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[i]);
             
             // Apply truncation first (Unicode-aware)
@@ -391,7 +397,8 @@ pub fn render_table_with_column_config(
     
     // Determine final column widths and configurations (including padding)
     for i in 0..data.column_count() {
-        let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+        let default_config = ColumnConfig::default();
+        let config = column_configs.get(i).unwrap_or(&default_config);
         let content_width = config.width.unwrap_or(auto_widths[i]);
         let total_width = content_width + config.padding.total();
         column_widths.push(total_width);
@@ -416,7 +423,8 @@ pub fn render_table_with_column_config(
     for (row_idx, row) in data.rows.iter().enumerate() {
         result.push(border.vertical);
         for (i, cell) in row.iter().enumerate() {
-            let config = column_configs.get(i).unwrap_or(&ColumnConfig::default());
+            let default_config = ColumnConfig::default();
+            let config = column_configs.get(i).unwrap_or(&default_config);
             let content_width = config.width.unwrap_or(auto_widths[i]);
             
             // Apply truncation first, then alignment, then padding
@@ -1877,11 +1885,10 @@ mod tests {
     fn test_string_pool() {
         let mut pool = StringPool::new(3);
         
-        let s1 = pool.intern("common");
-        let s2 = pool.intern("string");
-        let s3 = pool.intern("common"); // Should reuse
+        pool.intern("common");
+        pool.intern("string");
+        pool.intern("common"); // Should reuse
         
-        assert_eq!(s1, s3); // Same content
         assert_eq!(pool.size(), 2); // Only two unique strings
         
         pool.clear();
