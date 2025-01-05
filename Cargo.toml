@@ -1,7 +1,27 @@
 [package]
 name = "ascii-ansi-table"
-version = "0.7.1"
+version = "0.7.2"
 edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 unicode-width = "0.1"
+
+# WASM dependencies
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+
+# Optional WASM utilities
+wee_alloc = { version = "0.4", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[dependencies.wasm-bindgen-test]
+version = "0.3"
+optional = true
+
+[features]
+default = []
+wasm = ["wasm-bindgen", "js-sys", "web-sys", "wee_alloc", "console_error_panic_hook", "wasm-bindgen-test"]

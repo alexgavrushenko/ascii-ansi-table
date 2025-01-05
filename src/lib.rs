@@ -20,6 +20,9 @@ pub mod performance;
 pub mod single_line;
 pub mod cli;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
 pub use alignment::{Alignment, ColumnConfig, align_text};
@@ -45,6 +48,9 @@ pub use performance::{PerformanceConfig, RenderCache, StringPool, FastTableRende
 pub use single_line::{SingleLineConfig, render_single_line_table, render_compact_single_line,
                      render_key_value_pairs, render_transposed_single_line, SummaryRenderer};
 pub use cli::{CliConfig, TableCli, ArgParser, InputFormat, OutputFormat};
+
+#[cfg(feature = "wasm")]
+pub use wasm::{WasmTableConfig, WasmTableRenderer, WasmUtils, init, version, library_name};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
