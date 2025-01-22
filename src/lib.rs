@@ -23,6 +23,7 @@ pub mod cli;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 pub mod html;
+pub mod emoji;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -54,6 +55,8 @@ pub use cli::{CliConfig, TableCli, ArgParser, InputFormat, OutputFormat};
 pub use wasm::{WasmTableConfig, WasmTableRenderer, WasmUtils, init, version, library_name};
 pub use html::{HtmlConfig, HtmlTableRenderer, HtmlUtils, table_to_html, table_to_html_with_config,
               table_to_bootstrap_html, table_to_material_html, html_escape, html_unescape};
+pub use emoji::{EmojiConfig, EmojiWidthCalculator, emoji_align_text, emoji_truncate_text, 
+               calculate_emoji_column_widths, render_emoji_table};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
