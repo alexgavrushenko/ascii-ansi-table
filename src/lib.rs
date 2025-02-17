@@ -24,6 +24,7 @@ pub mod cli;
 pub mod wasm;
 pub mod html;
 pub mod emoji;
+pub mod debug;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -57,6 +58,8 @@ pub use html::{HtmlConfig, HtmlTableRenderer, HtmlUtils, table_to_html, table_to
               table_to_bootstrap_html, table_to_material_html, html_escape, html_unescape};
 pub use emoji::{EmojiConfig, EmojiWidthCalculator, emoji_align_text, emoji_truncate_text, 
                calculate_emoji_column_widths, render_emoji_table};
+pub use debug::{DebugConfig, TableDebugger, PerformanceMeasurer, debug_table, debug_table_compact,
+               debug_table_verbose, print_debug_table, validate_and_recommend};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
