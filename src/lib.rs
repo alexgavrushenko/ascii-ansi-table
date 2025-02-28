@@ -25,6 +25,7 @@ pub mod wasm;
 pub mod html;
 pub mod emoji;
 pub mod debug;
+pub mod validation;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -60,6 +61,8 @@ pub use emoji::{EmojiConfig, EmojiWidthCalculator, emoji_align_text, emoji_trunc
                calculate_emoji_column_widths, render_emoji_table};
 pub use debug::{DebugConfig, TableDebugger, PerformanceMeasurer, debug_table, debug_table_compact,
                debug_table_verbose, print_debug_table, validate_and_recommend};
+pub use validation::{ValidationError, ValidationResult, ValidationConfig, TableValidator, Severity,
+                    validate_table, validate_table_strict, validate_table_for_web, is_table_valid, validation_summary};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
