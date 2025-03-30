@@ -27,6 +27,7 @@ pub mod emoji;
 pub mod debug;
 pub mod validation;
 pub mod builder;
+pub mod docs;
 
 pub use border::{BorderChars, get_border_style};
 pub use renderer::RenderOptions;
@@ -66,6 +67,7 @@ pub use validation::{ValidationError, ValidationResult, ValidationConfig, TableV
                     validate_table, validate_table_strict, validate_table_for_web, is_table_valid, validation_summary};
 pub use builder::{TableBuilder, ThemedTableBuilder, ColumnBuilder, quick, TableTemplate, TemplateRegistry, 
                  from_template, global_templates};
+pub use docs::{generate_complete_documentation, show_all_examples};
 pub type Row = Vec<String>;
 
 #[derive(Debug, Clone)]
