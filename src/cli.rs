@@ -1,236 +1,548 @@
+#[cfg(feature = "cli")]
+use clap::{Parser, Subcommand};
+#[cfg(feature = "cli")]
+use serde_json;
+use std::io::{self, Read, Write};
 use std::fs;
-use std::io::{self, Read};
-use std::path::Path;
+use crate::types::{TableUserConfig, Row, TableResult, TableError};
+use crate::table;
 
-#[derive(Debug, Clone)]
-pub struct CliConfig {
-    pub input_format: InputFormat,
-    pub output_format: OutputFormat,
-    pub separator: String,
-    pub has_header: bool,
-    pub border_style: String,
+#[cfg(feature = "cli")]
+#[derive(Parser)]
+#[command(name = "table")]
+#[command(about = "A CLI for generating formatted tables")]
+#[command(version = "0.1.0")]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Commands,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum InputFormat {
-    Csv,
-    Tsv, 
-    Json,
-    Auto,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OutputFormat {
-    Table,
-    Csv,
-    Tsv,
-    Json,
-    Html,
-}
-
-impl Default for CliConfig {
-    fn default() -> Self {
-        Self {
-            input_format: InputFormat::Auto,
-            output_format: OutputFormat::Table,
-            separator: ",".to_string(),
-            has_header: true,
-            border_style: "default".to_string(),
-        }
-    }
-}
-
-impl CliConfig {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-/// Command-line interface for table processing
-pub struct TableCli {
-    config: CliConfig,
-}
-
-impl TableCli {
-    pub fn new(config: CliConfig) -> Self {
-        Self { config }
-    }
+#[cfg(feature = "cli")]
+#[derive(Subcommand)]
+pub enum Commands {
     
-    /// Process input data and generate output
-    pub fn process(&self, input: &str) -> Result<String, String> {
-        let table_data = self.parse_input(input)?;
+    Generate {
         
-        match self.config.output_format {
-            OutputFormat::Table => self.render_table(&table_data),
-            OutputFormat::Csv => Ok("CSV output".to_string()),
-            OutputFormat::Tsv => Ok("TSV output".to_string()),
-            OutputFormat::Json => Ok("JSON output".to_string()),
-            OutputFormat::Html => Ok("HTML output".to_string()),
+        #[arg(short, long)]
+        input: Option<String>,
+        
+        
+        #[arg(short, long)]
+        output: Option<String>,
+        
+        
+        #[arg(short, long, default_value = "honeywell")]
+        border: String,
+        
+        
+        #[arg(long)]
+        alignment: Option<String>,
+        
+        
+        #[arg(long)]
+        single_line: bool,
+        
+        
+        #[arg(short, long)]
+        config: Option<String>,
+        
+        
+        #[arg(long)]
+        pretty: bool,
+    },
+    
+    
+    Validate {
+        
+        #[arg(short, long)]
+        config: String,
+    },
+    
+    
+    Borders,
+    
+    
+    StreamDemo {
+        
+        #[arg(short, long, default_value = "10")]
+        rows: usize,
+        
+        
+        #[arg(short, long, default_value = "1000")]
+        delay: u64,
+        
+        
+        #[arg(short, long, default_value = "honeywell")]
+        border: String,
+        
+        
+        #[arg(long)]
+        colors: bool,
+        
+        
+        #[arg(long)]
+        widths: Option<String>,
+    },
+}
+
+#[cfg(feature = "cli")]
+pub fn run_cli() -> TableResult<()> {
+    let cli = Cli::parse();
+    
+    match cli.command {
+        Commands::Generate { 
+            input, 
+            output, 
+            border, 
+            alignment, 
+            single_line, 
+            config, 
+            pretty 
+        } => {
+            generate_table(input, output, border, alignment, single_line, config, pretty)
+        }
+        Commands::Validate { config } => {
+            validate_config(config)
+        }
+        Commands::Borders => {
+            list_borders()
+        }
+        Commands::StreamDemo { 
+            rows, 
+            delay, 
+            border, 
+            colors, 
+            widths 
+        } => {
+            stream_demo(rows, delay, border, colors, widths)
+        }
+    }
+}
+
+#[cfg(feature = "cli")]
+fn generate_table(
+    input: Option<String>,
+    output: Option<String>,
+    border: String,
+    alignment: Option<String>,
+    single_line: bool,
+    config_path: Option<String>,
+    _pretty: bool,
+) -> TableResult<()> {
+    
+    let input_data = read_input_data(input)?;
+    let table_data: Vec<Row> = serde_json::from_str(&input_data)
+        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON input: {}", e)))?;
+    
+    
+    let mut config = if let Some(config_path) = config_path {
+        read_config_file(config_path)?
+    } else {
+        TableUserConfig {
+            border: None,
+            columns: None,
+            column_default: None,
+            single_line: None,
+            spanning_cells: None,
+            header: None,
+        }
+    };
+    
+    
+    if border != "honeywell" {
+        let border_config = crate::get_border_characters(&border)?;
+        config.border = Some(crate::types::BorderUserConfig {
+            top_body: Some(border_config.top_body),
+            top_join: Some(border_config.top_join),
+            top_left: Some(border_config.top_left),
+            top_right: Some(border_config.top_right),
+            bottom_body: Some(border_config.bottom_body),
+            bottom_join: Some(border_config.bottom_join),
+            bottom_left: Some(border_config.bottom_left),
+            bottom_right: Some(border_config.bottom_right),
+            body_left: Some(border_config.body_left),
+            body_right: Some(border_config.body_right),
+            body_join: Some(border_config.body_join),
+            header_join: Some(border_config.header_join),
+            join_body: Some(border_config.join_body),
+            join_left: Some(border_config.join_left),
+            join_right: Some(border_config.join_right),
+            join_join: Some(border_config.join_join),
+        });
+    }
+    
+    if let Some(alignment) = alignment {
+        let align: crate::types::Alignment = alignment.parse()?;
+        if config.column_default.is_none() {
+            config.column_default = Some(crate::types::ColumnUserConfig {
+                alignment: Some(align),
+                vertical_alignment: None,
+                padding_left: None,
+                padding_right: None,
+                truncate: None,
+                wrap_word: None,
+                width: None,
+            });
+        } else {
+            config.column_default.as_mut().unwrap().alignment = Some(align);
         }
     }
     
-    /// Process file input
-    pub fn process_file<P: AsRef<Path>>(&self, path: P) -> Result<String, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
-        self.process(&content)
-    }
+    config.single_line = Some(single_line);
     
-    /// Process stdin input
-    pub fn process_stdin(&self) -> Result<String, String> {
-        let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)
-            .map_err(|e| format!("Failed to read stdin: {}", e))?;
-        self.process(&buffer)
-    }
     
-    fn parse_input(&self, input: &str) -> Result<crate::TableData, String> {
-        let format = if self.config.input_format == InputFormat::Auto {
-            self.detect_format(input)
-        } else {
-            self.config.input_format.clone()
+    let table_output = table(&table_data, Some(&config))?;
+    
+    
+    write_output(output, &table_output)?;
+    
+    Ok(())
+}
+
+#[cfg(feature = "cli")]
+fn validate_config(config_path: String) -> TableResult<()> {
+    let config = read_config_file(config_path)?;
+    
+    
+    let full_config = config.merge_with_default(&crate::types::TableConfig::default());
+    crate::core::validator::validate_config(&full_config)?;
+    
+    println!("Configuration is valid!");
+    Ok(())
+}
+
+#[cfg(feature = "cli")]
+fn list_borders() -> TableResult<()> {
+    let borders = ["honeywell", "norc", "ramac", "void"];
+    
+    println!("Available border styles:");
+    for border in &borders {
+        println!("  {}", border);
+        
+        
+        let border_config = crate::get_border_characters(border)?;
+        let example_data = vec![
+            vec!["A".to_string(), "B".to_string()],
+            vec!["C".to_string(), "D".to_string()],
+        ];
+        
+        let config = TableUserConfig {
+            border: Some(crate::types::BorderUserConfig {
+                top_body: Some(border_config.top_body),
+                top_join: Some(border_config.top_join),
+                top_left: Some(border_config.top_left),
+                top_right: Some(border_config.top_right),
+                bottom_body: Some(border_config.bottom_body),
+                bottom_join: Some(border_config.bottom_join),
+                bottom_left: Some(border_config.bottom_left),
+                bottom_right: Some(border_config.bottom_right),
+                body_left: Some(border_config.body_left),
+                body_right: Some(border_config.body_right),
+                body_join: Some(border_config.body_join),
+                header_join: Some(border_config.header_join),
+                join_body: Some(border_config.join_body),
+                join_left: Some(border_config.join_left),
+                join_right: Some(border_config.join_right),
+                join_join: Some(border_config.join_join),
+            }),
+            columns: None,
+            column_default: None,
+            single_line: None,
+            spanning_cells: None,
+            header: None,
         };
         
-        match format {
-            InputFormat::Csv => self.parse_csv(input),
-            InputFormat::Tsv => self.parse_tsv(input),
-            InputFormat::Json => self.parse_json(input),
-            InputFormat::Auto => Err("Could not auto-detect input format".to_string()),
-        }
+        let example_table = table(&example_data, Some(&config))?;
+        println!("{}", example_table);
+        println!();
     }
     
-    fn detect_format(&self, input: &str) -> InputFormat {
-        let first_line = input.lines().next().unwrap_or("");
+    Ok(())
+}
+
+#[cfg(feature = "cli")]
+fn read_input_data(input: Option<String>) -> TableResult<String> {
+    match input {
+        Some(path) => {
+            fs::read_to_string(path)
+                .map_err(|e| TableError::InvalidConfig(format!("Failed to read input file: {}", e)))
+        }
+        None => {
+            let mut buffer = String::new();
+            io::stdin().read_to_string(&mut buffer)
+                .map_err(|e| TableError::InvalidConfig(format!("Failed to read from stdin: {}", e)))?;
+            Ok(buffer)
+        }
+    }
+}
+
+#[cfg(feature = "cli")]
+fn read_config_file(path: String) -> TableResult<TableUserConfig> {
+    let content = fs::read_to_string(path)
+        .map_err(|e| TableError::InvalidConfig(format!("Failed to read config file: {}", e)))?;
+    
+    serde_json::from_str(&content)
+        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON in config file: {}", e)))
+}
+
+#[cfg(feature = "cli")]
+fn write_output(output: Option<String>, content: &str) -> TableResult<()> {
+    match output {
+        Some(path) => {
+            fs::write(path, content)
+                .map_err(|e| TableError::InvalidConfig(format!("Failed to write output file: {}", e)))
+        }
+        None => {
+            io::stdout().write_all(content.as_bytes())
+                .map_err(|e| TableError::InvalidConfig(format!("Failed to write to stdout: {}", e)))?;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "cli")]
+fn stream_demo(
+    rows: usize,
+    delay: u64,
+    border: String,
+    colors: bool,
+    widths: Option<String>,
+) -> TableResult<()> {
+    use std::thread;
+    use std::time::Duration;
+    use std::io::{self, Write};
+    
+    use crate::types::{StreamUserConfig, BorderUserConfig, ColumnUserConfig};
+    
+    println!("🚀 ASCII ANSI Table Streaming Demo");
+    println!("📊 Streaming {} rows with {}ms delay (1 row per second)", rows, delay);
+    println!("🎨 Border style: {}", border);
+    if colors {
+        println!("🌈 ANSI colors: enabled");
+    }
+    println!("────────────────────────────────────────");
+    
+    
+    let border_config = crate::get_border_characters(&border)?;
+    let mut stream_config = StreamUserConfig {
+        border: Some(BorderUserConfig {
+            top_body: Some(border_config.top_body),
+            top_join: Some(border_config.top_join),
+            top_left: Some(border_config.top_left),
+            top_right: Some(border_config.top_right),
+            bottom_body: Some(border_config.bottom_body),
+            bottom_join: Some(border_config.bottom_join),
+            bottom_left: Some(border_config.bottom_left),
+            bottom_right: Some(border_config.bottom_right),
+            body_left: Some(border_config.body_left),
+            body_right: Some(border_config.body_right),
+            body_join: Some(border_config.body_join),
+            header_join: Some(border_config.header_join),
+            join_body: Some(border_config.join_body),
+            join_left: Some(border_config.join_left),
+            join_right: Some(border_config.join_right),
+            join_join: Some(border_config.join_join),
+        }),
+        columns: None,
+        column_default: None,
+        single_line: None,
+    };
+    
+    
+    let products = [
+        "Laptop", "Mouse", "Keyboard", "Monitor", "Speakers", "Webcam", "Headphones", 
+        "Tablet", "Phone", "Charger", "Cable", "Adapter", "Router", "Switch", "Printer"
+    ];
+    let statuses = ["Active", "Sold", "Pending", "Shipped", "Delivered"];
+    
+    
+    let mut all_sample_data = vec![];
+    
+    
+    let header = if colors {
+        vec![
+            "\u{1b}[1;36mID\u{1b}[0m".to_string(),
+            "\u{1b}[1;32mProduct\u{1b}[0m".to_string(),
+            "\u{1b}[1;33mPrice\u{1b}[0m".to_string(),
+            "\u{1b}[1;35mStatus\u{1b}[0m".to_string(),
+        ]
+    } else {
+        vec!["ID".to_string(), "Product".to_string(), "Price".to_string(), "Status".to_string()]
+    };
+    all_sample_data.push(header.clone());
+    
+    
+    for i in 0..rows {
+        let product = products[i % products.len()];
+        let status = statuses[i % statuses.len()];
+        let price = format!("${}", (i + 1) * 25 + 99);
+        let ns = "\n".repeat(10);
         
-        if first_line.starts_with('[') || first_line.starts_with('{') {
-            InputFormat::Json
-        } else if first_line.contains('\t') {
-            InputFormat::Tsv
-        } else if first_line.contains(',') {
-            InputFormat::Csv
+        let row = if colors {
+            vec![
+                format!("\u{1b}[37m{}\u{1b}[0m", i + 1),
+                format!("\u{1b}[34m{}\u{1b}[0m", product),
+                format!("\u{1b}[32m{}\u{1b}[0m", ns),
+                match status {
+                    "Active" => format!("\u{1b}[32m✓ {}\u{1b}[0m", status),
+                    "Sold" => format!("\u{1b}[31m✗ {}\u{1b}[0m", status),
+                    "Pending" => format!("\u{1b}[33m⚠ {}\u{1b}[0m", status),
+                    "Shipped" => format!("\u{1b}[36m🚚 {}\u{1b}[0m", status),
+                    "Delivered" => format!("\u{1b}[35m📦 {}\u{1b}[0m", status),
+                    _ => status.to_string(),
+                }
+            ]
         } else {
-            InputFormat::Csv
-        }
+            vec![
+                (i + 1).to_string(),
+                product.to_string(),
+                price,
+                status.to_string(),
+            ]
+        };
+        all_sample_data.push(row);
     }
     
-    fn parse_csv(&self, input: &str) -> Result<crate::TableData, String> {
-        let mut rows = Vec::new();
+    
+    if let Some(widths_str) = widths {
+        let widths: Result<Vec<usize>, _> = widths_str
+            .split(',')
+            .map(|w| w.trim().parse::<usize>())
+            .collect();
         
-        for line in input.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            
-            let row: Vec<String> = line
-                .split(&self.config.separator)
-                .map(|field| field.trim_matches('"').to_string())
+        if let Ok(widths) = widths {
+            let column_configs: Vec<ColumnUserConfig> = widths.iter()
+                .map(|&width| ColumnUserConfig {
+                    width: Some(width),
+                    ..Default::default()
+                })
                 .collect();
-            
-            rows.push(row);
+            stream_config.columns = Some(column_configs);
         }
+    } else {
         
-        if rows.is_empty() {
-            return Err("No data found in input".to_string());
-        }
+        let temp_config = TableUserConfig {
+            border: stream_config.border.clone(),
+            columns: None, 
+            column_default: stream_config.column_default.clone(),
+            single_line: stream_config.single_line,
+            spanning_cells: None,
+            header: None,
+        };
         
-        Ok(crate::TableData::new(rows))
+        
+        let _temp_table = crate::table(&all_sample_data, Some(&temp_config))?;
+        
+        
+        
+        let column_count = all_sample_data.first().map(|row| row.len()).unwrap_or(4);
+        
+        
+        let default_widths = vec![
+            6,  
+            12, 
+            8,  
+            12, 
+        ];
+        
+        let column_configs: Vec<ColumnUserConfig> = default_widths.iter()
+            .take(column_count)
+            .map(|&width| ColumnUserConfig {
+                width: Some(width),
+                ..Default::default()
+            })
+            .collect();
+        stream_config.columns = Some(column_configs);
     }
     
-    fn parse_tsv(&self, input: &str) -> Result<crate::TableData, String> {
-        let mut rows = Vec::new();
+    
+    use crate::features::streaming::create_string_stream;
+    
+    
+    let column_widths: Vec<usize> = stream_config.columns.as_ref()
+        .map(|cols| cols.iter().map(|col| col.width.unwrap_or(10)).collect())
+        .unwrap_or_else(|| vec![6, 12, 8, 12]); 
+    
+    let mut stream = create_string_stream(Some(stream_config));
+    
+    
+    let header_output = stream.write_row(&all_sample_data[0])?;
+    print!("{}", header_output);
+    io::stdout().flush().map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {}", e)))?;
+    
+    
+    for i in 0..rows {
         
-        for line in input.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            
-            let row: Vec<String> = line
-                .split('\t')
-                .map(|field| field.to_string())
-                .collect();
-            
-            rows.push(row);
+        thread::sleep(Duration::from_millis(delay));
+        
+        
+        if i > 0 {
+            print!("\u{1b}[1A");
+            print!("\u{1b}[0K"); 
         }
         
-        if rows.is_empty() {
-            return Err("No data found in input".to_string());
-        }
         
-        Ok(crate::TableData::new(rows))
+        let row_output = stream.write_row(&all_sample_data[i + 1])?; 
+        print!("{}", row_output);
+        
+        
+        
+        use crate::core::renderer::{draw_border_line, BorderType};
+        
+        let border_config = crate::get_border_characters(&border)?;
+        let bottom_border = draw_border_line(&column_widths, &border_config, BorderType::Bottom);
+        print!("{}\n", bottom_border);
+        io::stdout().flush().map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {}", e)))?;
     }
     
-    fn parse_json(&self, _input: &str) -> Result<crate::TableData, String> {
-        // Simplified JSON parsing for compilation
-        Ok(crate::TableData::new(vec![vec!["JSON".to_string(), "Data".to_string()]]))
-    }
     
-    fn render_table(&self, data: &crate::TableData) -> Result<String, String> {
-        let _border = crate::get_border_style(&self.config.border_style)?;
-        crate::render_table_with_borders(data)
-    }
+    
+    println!("\n✅ Streaming demo complete! {} rows processed.", rows);
+    println!("💡 Try different options:");
+    println!("   --rows 20 --delay 200 --colors --border ramac");
+    println!("   --widths 4,12,8,12");
+    
+    Ok(())
 }
 
-/// Simple command-line argument parser
-pub struct ArgParser {
-    args: Vec<String>,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::NamedTempFile;
+    use std::io::Write;
 
-impl ArgParser {
-    pub fn new() -> Self {
-        Self {
-            args: std::env::args().collect(),
-        }
-    }
-    
-    pub fn from_args(args: Vec<String>) -> Self {
-        Self { args }
-    }
-    
-    pub fn parse(&self) -> Result<CliConfig, String> {
-        let mut config = CliConfig::new();
-        let mut i = 1;
+    #[test]
+    #[cfg(feature = "cli")]
+    fn test_read_config_file() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let config_json = r#"{"single_line": true}"#;
+        temp_file.write_all(config_json.as_bytes()).unwrap();
         
-        while i < self.args.len() {
-            match self.args[i].as_str() {
-                "--input-format" | "-i" => {
-                    i += 1;
-                    if i >= self.args.len() {
-                        return Err("Missing value for input format".to_string());
-                    }
-                    config.input_format = match self.args[i].as_str() {
-                        "csv" => InputFormat::Csv,
-                        "tsv" => InputFormat::Tsv,
-                        "json" => InputFormat::Json,
-                        "auto" => InputFormat::Auto,
-                        _ => return Err("Invalid input format".to_string()),
-                    };
-                }
-                "--output-format" | "-o" => {
-                    i += 1;
-                    if i >= self.args.len() {
-                        return Err("Missing value for output format".to_string());
-                    }
-                    config.output_format = match self.args[i].as_str() {
-                        "table" => OutputFormat::Table,
-                        "csv" => OutputFormat::Csv,
-                        "tsv" => OutputFormat::Tsv,
-                        "json" => OutputFormat::Json,
-                        "html" => OutputFormat::Html,
-                        _ => return Err("Invalid output format".to_string()),
-                    };
-                }
-                "--help" | "-h" => {
-                    return Err("CLI Help".to_string());
-                }
-                _ => {}
-            }
-            i += 1;
-        }
-        
-        Ok(config)
+        let config = read_config_file(temp_file.path().to_string_lossy().to_string()).unwrap();
+        assert_eq!(config.single_line, Some(true));
     }
     
-    pub fn get_input_files(&self) -> Vec<String> {
-        Vec::new() // Simplified for compilation
+    #[test]
+    #[cfg(feature = "cli")]
+    fn test_generate_table_with_config() {
+        let table_data = vec![
+            vec!["Name".to_string(), "Age".to_string()],
+            vec!["John".to_string(), "30".to_string()],
+        ];
+        
+        let config = TableUserConfig {
+            border: None,
+            columns: None,
+            column_default: None,
+            single_line: Some(false),
+            spanning_cells: None,
+            header: None,
+        };
+        
+        let result = table(&table_data, Some(&config)).unwrap();
+        assert!(result.contains("Name"));
+        assert!(result.contains("Age"));
+        assert!(result.contains("John"));
+        assert!(result.contains("30"));
     }
 }
