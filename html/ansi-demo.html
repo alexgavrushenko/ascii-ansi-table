@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII ANSI Table WASM - ANSI Color Demo</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .ansi-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin: 15px 0;
+            border: 2px solid #007acc;
+        }
+        
+        .html-output {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .color-sample {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .feature-list {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 ASCII ANSI Table WASM - ANSI Color Demo</h1>
+    
+    <div class="container">
+        <div class="status" id="status">Loading WASM module...</div>
+        
+        <div class="warning">
+            <strong>⚠️ Note:</strong> This demo shows ANSI color support in table rendering. 
+            Full ANSI-to-HTML conversion is pending implementation (see TODO_JS.md).
+        </div>
+        
+        <div class="feature-list">
+            <h3>Supported ANSI Features:</h3>
+            <ul>
+                <li>Basic 8-color palette (30-37, 40-47)</li>
+                <li>Bold text (1m)</li>
+                <li>Underline text (4m)</li>
+                <li>Italic text (3m)</li>
+                <li>256-color palette (38;5;n, 48;5;n)</li>
+                <li>True color RGB (38;2;r;g;b, 48;2;r;g;b)</li>
+                <li>Text decorations (strikethrough, dim, reverse)</li>
+            </ul>
+        </div>
+        
+        <div class="controls">
+            <button id="demo-basic" onclick="demoBasicColors()" disabled>Basic Colors</button>
+            <button id="demo-formatting" onclick="demoFormatting()" disabled>Text Formatting</button>
+            <button id="demo-256" onclick="demo256Colors()" disabled>256 Colors</button>
+            <button id="demo-true" onclick="demoTrueColor()" disabled>True Color</button>
+            <button id="demo-complex" onclick="demoComplexTable()" disabled>Complex Example</button>
+            <button onclick="clearOutputs()">Clear All</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Demo Outputs</h2>
+        <div id="demo-outputs"></div>
+    </div>
+
+    <script type="module">
+        import init, { WasmTable, stripAnsi, calculateDisplayWidth, convertAnsiToHtml } from './pkg/ascii_ansi_table.js';
+        
+        let wasmModule = null;
+        
+        async function initializeWasm() {
+            try {
+                wasmModule = await init();
+                document.getElementById('status').textContent = 'Ready to demonstrate ANSI colors!';
+                document.getElementById('status').className = 'status ready';
+                
+                document.getElementById('demo-basic').disabled = false;
+                document.getElementById('demo-formatting').disabled = false;
+                document.getElementById('demo-256').disabled = false;
+                document.getElementById('demo-true').disabled = false;
+                document.getElementById('demo-complex').disabled = false;
+                
+                return true;
+            } catch (error) {
+                document.getElementById('status').textContent = 'Failed to load WASM module: ' + error.message;
+                document.getElementById('status').className = 'status error';
+                console.error('WASM initialization failed:', error);
+                return false;
+            }
+        }
+        
+        
+        function addDemoSection(title, ansiOutput, description) {
+            const container = document.getElementById('demo-outputs');
+            
+            const section = document.createElement('div');
+            section.className = 'demo-section';
+            
+            const htmlOutput = convertAnsiToHtml(ansiOutput);
+            const strippedText = stripAnsi(ansiOutput);
+            const displayWidth = calculateDisplayWidth(ansiOutput.split('\\n')[0] || '');
+            
+            section.innerHTML = `
+                <h3>${title}</h3>
+                <p>${description}</p>
+                <h4>Table Output:</h4>
+                <div class="html-output">${htmlOutput}</div>
+                <p><strong>Stats:</strong> Display width: ${displayWidth} chars, 
+                   Raw length: ${ansiOutput.length} chars, 
+                   Stripped length: ${strippedText.length} chars</p>
+            `;
+            
+            container.appendChild(section);
+        }
+        
+        window.demoBasicColors = function() {
+            if (!wasmModule) return;
+            
+            const data = [
+                ['Color', 'Foreground', 'Background', 'Sample'],
+                ['Black', '\\x1b[30mBlack text\\x1b[0m', '\\x1b[40m\\x1b[37m Black BG \\x1b[0m', '\\x1b[30m\\x1b[47mSample\\x1b[0m'],
+                ['Red', '\\x1b[31mRed text\\x1b[0m', '\\x1b[41m\\x1b[37m Red BG \\x1b[0m', '\\x1b[31m\\x1b[47mSample\\x1b[0m'],
+                ['Green', '\\x1b[32mGreen text\\x1b[0m', '\\x1b[42m\\x1b[30m Green BG \\x1b[0m', '\\x1b[32m\\x1b[47mSample\\x1b[0m'],
+                ['Yellow', '\\x1b[33mYellow text\\x1b[0m', '\\x1b[43m\\x1b[30m Yellow BG \\x1b[0m', '\\x1b[33m\\x1b[40mSample\\x1b[0m'],
+                ['Blue', '\\x1b[34mBlue text\\x1b[0m', '\\x1b[44m\\x1b[37m Blue BG \\x1b[0m', '\\x1b[34m\\x1b[47mSample\\x1b[0m'],
+                ['Magenta', '\\x1b[35mMagenta text\\x1b[0m', '\\x1b[45m\\x1b[37m Magenta BG \\x1b[0m', '\\x1b[35m\\x1b[47mSample\\x1b[0m'],
+                ['Cyan', '\\x1b[36mCyan text\\x1b[0m', '\\x1b[46m\\x1b[30m Cyan BG \\x1b[0m', '\\x1b[36m\\x1b[40mSample\\x1b[0m'],
+                ['White', '\\x1b[37mWhite text\\x1b[0m', '\\x1b[47m\\x1b[30m White BG \\x1b[0m', '\\x1b[37m\\x1b[40mSample\\x1b[0m']
+            ];
+            
+            const table = new WasmTable();
+            table.setData(data);
+            const output = table.render();
+            
+            addDemoSection(
+                'Basic 8-Color Palette',
+                output,
+                'Standard ANSI colors (30-37 foreground, 40-47 background) with proper table formatting.'
+            );
+        };
+        
+        window.demoFormatting = function() {
+            if (!wasmModule) return;
+            
+            const data = [
+                ['Formatting', 'Example', 'ANSI Code'],
+                ['Normal', 'Regular text', 'No code'],
+                ['Bold', '\\x1b[1mBold text\\x1b[0m', '\\x1b[1m...\\x1b[0m'],
+                ['Italic', '\\x1b[3mItalic text\\x1b[0m', '\\x1b[3m...\\x1b[0m'],
+                ['Underline', '\\x1b[4mUnderlined text\\x1b[0m', '\\x1b[4m...\\x1b[0m'],
+                ['Strikethrough', '\\x1b[9mStrikethrough text\\x1b[0m', '\\x1b[9m...\\x1b[0m'],
+                ['Dim', '\\x1b[2mDim text\\x1b[0m', '\\x1b[2m...\\x1b[0m'],
+                ['Combined', '\\x1b[1m\\x1b[4m\\x1b[31mBold Red Underlined\\x1b[0m', 'Multiple codes']
+            ];
+            
+            const table = new WasmTable();
+            table.setData(data);
+            const output = table.render();
+            
+            addDemoSection(
+                'Text Formatting Options',
+                output,
+                'Various ANSI text formatting options demonstrating bold, italic, underline, and combined effects.'
+            );
+        };
+        
+        window.demo256Colors = function() {
+            if (!wasmModule) return;
+            
+            const data = [
+                ['256-Color Palette', 'Foreground', 'Background'],
+                ['Bright Red', '\\x1b[38;5;196mBright Red Text\\x1b[0m', '\\x1b[48;5;196m\\x1b[30m Red BG \\x1b[0m'],
+                ['Orange', '\\x1b[38;5;208mOrange Text\\x1b[0m', '\\x1b[48;5;208m\\x1b[30m Orange BG \\x1b[0m'],
+                ['Bright Green', '\\x1b[38;5;46mBright Green Text\\x1b[0m', '\\x1b[48;5;46m\\x1b[30m Green BG \\x1b[0m'],
+                ['Sky Blue', '\\x1b[38;5;117mSky Blue Text\\x1b[0m', '\\x1b[48;5;117m\\x1b[30m Blue BG \\x1b[0m'],
+                ['Purple', '\\x1b[38;5;129mPurple Text\\x1b[0m', '\\x1b[48;5;129m\\x1b[37m Purple BG \\x1b[0m'],
+                ['Gray Scale', '\\x1b[38;5;240mDark Gray\\x1b[0m', '\\x1b[48;5;240m\\x1b[37m Gray BG \\x1b[0m']
+            ];
+            
+            const table = new WasmTable();
+            table.setData(data);
+            const output = table.render();
+            
+            addDemoSection(
+                '256-Color Palette Sample',
+                output,
+                'Extended color palette using 256-color mode (38;5;n for foreground, 48;5;n for background).'
+            );
+        };
+        
+        window.demoTrueColor = function() {
+            if (!wasmModule) return;
+            
+            const data = [
+                ['True Color (RGB)', 'Example', 'RGB Values'],
+                ['Coral', '\\x1b[38;2;255;127;80mCoral Text\\x1b[0m', 'rgb(255, 127, 80)'],
+                ['Teal', '\\x1b[38;2;0;128;128mTeal Text\\x1b[0m', 'rgb(0, 128, 128)'],
+                ['Gold', '\\x1b[38;2;255;215;0mGold Text\\x1b[0m', 'rgb(255, 215, 0)'],
+                ['Violet', '\\x1b[38;2;138;43;226mViolet Text\\x1b[0m', 'rgb(138, 43, 226)'],
+                ['Combined', '\\x1b[38;2;255;255;255m\\x1b[48;2;75;0;130mWhite on Indigo\\x1b[0m', 'Custom combo']
+            ];
+            
+            const table = new WasmTable();
+            table.setData(data);
+            const output = table.render();
+            
+            addDemoSection(
+                'True Color (24-bit RGB)',
+                output,
+                'Full RGB color support using true color ANSI sequences (38;2;r;g;b for foreground, 48;2;r;g;b for background).'
+            );
+        };
+        
+        window.demoComplexTable = function() {
+            if (!wasmModule) return;
+            
+            const data = [
+                [
+                    '\\x1b[1m\\x1b[4m\\x1b[34mProduct\\x1b[0m',
+                    '\\x1b[1m\\x1b[4m\\x1b[32mPrice\\x1b[0m',
+                    '\\x1b[1m\\x1b[4m\\x1b[33mStatus\\x1b[0m',
+                    '\\x1b[1m\\x1b[4m\\x1b[35mNotes\\x1b[0m'
+                ],
+                [
+                    '\\x1b[1mLaptop\\x1b[0m',
+                    '\\x1b[32m$999.99\\x1b[0m',
+                    '\\x1b[42m\\x1b[30m IN STOCK \\x1b[0m',
+                    '\\x1b[3mFast shipping\\x1b[0m'
+                ],
+                [
+                    '\\x1b[1mMouse\\x1b[0m',
+                    '\\x1b[32m$29.99\\x1b[0m',
+                    '\\x1b[43m\\x1b[30m LOW STOCK \\x1b[0m',
+                    '\\x1b[33m⚠ Only 3 left\\x1b[0m'
+                ],
+                [
+                    '\\x1b[1mKeyboard\\x1b[0m',
+                    '\\x1b[31m\\x1b[9m$199.99\\x1b[0m \\x1b[32m$149.99\\x1b[0m',
+                    '\\x1b[41m\\x1b[37m OUT OF STOCK \\x1b[0m',
+                    '\\x1b[31m❌ Discontinued\\x1b[0m'
+                ],
+                [
+                    '\\x1b[1mMonitor\\x1b[0m',
+                    '\\x1b[32m$299.99\\x1b[0m',
+                    '\\x1b[46m\\x1b[30m PRE-ORDER \\x1b[0m',
+                    '\\x1b[36m📅 Ships next week\\x1b[0m'
+                ]
+            ];
+            
+            const table = new WasmTable();
+            table.setData(data);
+            const output = table.render();
+            
+            addDemoSection(
+                'Complex Mixed Formatting',
+                output,
+                'Real-world example with bold headers, colored prices, status indicators, strikethrough text, and emoji support.'
+            );
+        };
+        
+        window.clearOutputs = function() {
+            document.getElementById('demo-outputs').innerHTML = '';
+        };
+        
+        initializeWasm();
+    </script>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII ANSI Table WASM - Comprehensive Test Suite</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .test-result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .test-result.pass {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .test-result.fail {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .test-result.running {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        
+        .test-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #007acc;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .summary {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .benchmark-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .ansi-preview {
+            background: #1e1e1e;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        
+        .html-preview {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-bar" id="status-bar">
+        Loading WASM module...
+    </div>
+    
+    <div style="margin-top: 60px;">
+        <h1>🧪 ASCII ANSI Table WASM - Comprehensive Test Suite</h1>
+        
+        <div class="container">
+            <div class="controls">
+                <button id="run-all-btn" onclick="runAllTests()" disabled>Run All Tests</button>
+                <button id="run-functional-btn" onclick="runFunctionalTests()" disabled>Run Functional Tests</button>
+                <button id="run-perf-btn" onclick="runPerformanceTests()" disabled>Run Performance Tests</button>
+                <button onclick="clearResults()">Clear Results</button>
+            </div>
+            
+            <div class="summary" id="summary" style="display: none;">
+                <strong>Test Summary:</strong>
+                <span id="summary-text"></span>
+            </div>
+        </div>
+        
+        <div class="container">
+            <h2>Test Results</h2>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { 
+            WasmTable, 
+            table, 
+            getBorderCharacters, 
+            validateTableData, 
+            calculateColumnWidths, 
+            wrapText, 
+            calculateDisplayWidth, 
+            stripAnsi,
+            convertAnsiToHtml
+        } from './pkg/ascii_ansi_table.js';
+        
+        import { 
+            createSimpleTable, 
+            createColorfulTable, 
+            createMixedLengthTable,
+            createUnicodeTable,
+            createComplexAnsiTable,
+            measureTime,
+            debug,
+            assert
+        } from './test-utils.js';
+        
+        import { createFunctionalTestSuite } from './test-suite-synchronized.js';
+        import { createPerformanceTestSuite } from './test-suite-performance.js';
+        
+        let wasmModule = null;
+        let testResults = [];
+        
+        // Initialize WASM module
+        async function initializeWasm() {
+            try {
+                wasmModule = await init();
+                document.getElementById('status-bar').textContent = 'WASM module loaded successfully!';
+                document.getElementById('status-bar').style.background = '#28a745';
+                
+                // Enable buttons
+                document.getElementById('run-all-btn').disabled = false;
+                document.getElementById('run-functional-btn').disabled = false;
+                document.getElementById('run-perf-btn').disabled = false;
+                
+                console.log('WASM module initialized successfully');
+                return true;
+            } catch (error) {
+                document.getElementById('status-bar').textContent = 'Failed to load WASM module: ' + error.message;
+                document.getElementById('status-bar').style.background = '#dc3545';
+                console.error('WASM initialization failed:', error);
+                return false;
+            }
+        }
+        
+        
+        function displayTestResult(result) {
+            const resultsContainer = document.getElementById('test-results');
+            
+            const testDiv = document.createElement('div');
+            testDiv.className = `test-result ${result.status.toLowerCase()}`;
+            
+            let content = `
+                <h3>${result.name} - ${result.status}</h3>
+                <div class="benchmark-info">
+                    ${result.description || 'No description'}
+                    ${result.creationTime ? `• Creation: ${result.creationTime.toFixed(2)}ms` : ''}
+                    ${result.renderTime ? `• Render: ${result.renderTime.toFixed(2)}ms` : ''}
+                    ${result.maxLineLength ? `• Max line length: ${result.maxLineLength}` : ''}
+                    ${result.lineCount ? `• Lines: ${result.lineCount}` : ''}
+                    ${result.charCount ? `• Characters: ${result.charCount.toLocaleString()}` : ''}
+                    ${result.performance ? Object.entries(result.performance).map(([key, value]) => 
+                        `• ${key}: ${typeof value === 'number' ? value.toLocaleString() : value}`
+                    ).join(' ') : ''}
+                </div>
+            `;
+            
+            if (result.error) {
+                content += `<div style="color: red; margin: 10px 0;"><strong>Error:</strong> ${result.error}</div>`;
+            }
+            
+            if (result.result) {
+                let sampleOutput = '';
+                if (result.result.output) {
+                    const lines = result.result.output.split('\n');
+                    const sampleLines = lines.slice(0, 20);
+                    if (lines.length > 20) {
+                        sampleLines.push(`... (${lines.length - 20} more lines)`);
+                    }
+                    sampleOutput = sampleLines.join('\n');
+                }
+                
+                if (result.result.htmlOutput) {
+                    content += `<div class="html-preview">${result.result.htmlOutput}</div>`;
+                } else if (sampleOutput) {
+                    const htmlOutput = convertAnsiToHtml(sampleOutput);
+                    content += `<div class="html-preview">${htmlOutput}</div>`;
+                }
+                
+                if (result.name.includes('Performance') && sampleOutput) {
+                    content += `
+                        <details style="margin-top: 10px;">
+                            <summary style="cursor: pointer; font-weight: bold;">📋 Raw Table Sample (first 20 lines)</summary>
+                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 300px; overflow-y: auto; margin-top: 10px;">${sampleOutput}</pre>
+                        </details>
+                    `;
+                }
+            }
+            
+            testDiv.innerHTML = content;
+            resultsContainer.appendChild(testDiv);
+        }
+        
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            const summaryText = document.getElementById('summary-text');
+            
+            if (testResults.length === 0) {
+                summary.style.display = 'none';
+                return;
+            }
+            
+            const passed = testResults.filter(r => r.status === 'PASS').length;
+            const failed = testResults.filter(r => r.status === 'FAIL').length;
+            const total = testResults.length;
+            
+            summaryText.textContent = `${passed}/${total} tests passed (${failed} failed)`;
+            summary.style.display = 'block';
+            summary.style.background = failed === 0 ? '#d4edda' : '#f8d7da';
+        }
+        
+        window.runFunctionalTests = async function() {
+            if (!wasmModule) {
+                alert('WASM module not initialized');
+                return;
+            }
+            
+            document.getElementById('run-functional-btn').disabled = true;
+            document.getElementById('status-bar').textContent = 'Running functional tests...';
+            document.getElementById('status-bar').style.background = '#ffc107';
+            
+            try {
+                const testSuite = createFunctionalTestSuite(WasmTable, convertAnsiToHtml, stripAnsi);
+                
+                for (const test of testSuite.tests) {
+                    const testDiv = document.createElement('div');
+                    testDiv.className = 'test-result running';
+                    testDiv.innerHTML = `<h3>${test.name} - RUNNING</h3>`;
+                    document.getElementById('test-results').appendChild(testDiv);
+                    
+                    try {
+                        const result = await test.testFn();
+                        testResults.push({
+                            name: test.name,
+                            status: 'PASS',
+                            result: result,
+                            error: null,
+                            description: result.description,
+                            creationTime: result.creationTime,
+                            renderTime: result.renderTime,
+                            maxLineLength: result.maxLineLength,
+                            lineCount: result.lineCount
+                        });
+                        
+                        testDiv.remove();
+                        displayTestResult(testResults[testResults.length - 1]);
+                    } catch (error) {
+                        testResults.push({
+                            name: test.name,
+                            status: 'FAIL',
+                            result: null,
+                            error: error.message,
+                            description: null
+                        });
+                        
+                        testDiv.remove();
+                        displayTestResult(testResults[testResults.length - 1]);
+                    }
+                    
+                    updateSummary();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                document.getElementById('status-bar').textContent = 'Functional tests completed!';
+                document.getElementById('status-bar').style.background = '#28a745';
+                
+            } catch (error) {
+                document.getElementById('status-bar').textContent = 'Test execution failed: ' + error.message;
+                document.getElementById('status-bar').style.background = '#dc3545';
+                console.error('Test execution failed:', error);
+            }
+            
+            document.getElementById('run-functional-btn').disabled = false;
+        };
+        
+        window.runPerformanceTests = async function() {
+            if (!wasmModule) {
+                alert('WASM module not initialized');
+                return;
+            }
+            
+            document.getElementById('run-perf-btn').disabled = true;
+            document.getElementById('status-bar').textContent = 'Running performance tests...';
+            document.getElementById('status-bar').style.background = '#ffc107';
+            
+            try {
+                const testSuite = createPerformanceTestSuite(WasmTable, measureTime);
+                
+                for (const test of testSuite.tests) {
+                    const testDiv = document.createElement('div');
+                    testDiv.className = 'test-result running';
+                    testDiv.innerHTML = `<h3>${test.name} - RUNNING</h3><p>⏳ This may take a moment for large tables...</p>`;
+                    document.getElementById('test-results').appendChild(testDiv);
+                    
+                    try {
+                        const result = await test.testFn();
+                        testResults.push({
+                            name: test.name,
+                            status: 'PASS',
+                            result: result,
+                            error: null,
+                            description: result.description,
+                            creationTime: result.creationTime,
+                            renderTime: result.renderTime,
+                            maxLineLength: result.maxLineLength,
+                            lineCount: result.lineCount,
+                            charCount: result.charCount,
+                            performance: result.performance
+                        });
+                        
+                        testDiv.remove();
+                        displayTestResult(testResults[testResults.length - 1]);
+                    } catch (error) {
+                        testResults.push({
+                            name: test.name,
+                            status: 'FAIL',
+                            result: null,
+                            error: error.message,
+                            description: null
+                        });
+                        
+                        testDiv.remove();
+                        displayTestResult(testResults[testResults.length - 1]);
+                    }
+                    
+                    updateSummary();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                document.getElementById('status-bar').textContent = 'Performance tests completed!';
+                document.getElementById('status-bar').style.background = '#28a745';
+                
+            } catch (error) {
+                document.getElementById('status-bar').textContent = 'Performance test execution failed: ' + error.message;
+                document.getElementById('status-bar').style.background = '#dc3545';
+                console.error('Performance test execution failed:', error);
+            }
+            
+            document.getElementById('run-perf-btn').disabled = false;
+        };
+
+        window.runAllTests = async function() {
+            await runFunctionalTests();
+            await runPerformanceTests();
+        };
+        
+        window.clearResults = function() {
+            testResults = [];
+            document.getElementById('test-results').innerHTML = '';
+            updateSummary();
+        };
+        
+        initializeWasm();
+    </script>
+</body>
+</html>

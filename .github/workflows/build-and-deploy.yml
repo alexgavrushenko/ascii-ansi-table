@@ -1,0 +1,228 @@
+name: Build WASM and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Configure Git for repository access
+      run: |
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+        git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/" || true
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: wasm32-unknown-unknown
+        override: true
+        components: rustfmt, clippy
+        
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      
+    - name: Run Rust tests
+      run: cargo test
+      
+    - name: Run Rust clippy
+      run: cargo clippy -- -D warnings
+      
+    - name: Check Rust formatting
+      run: cargo fmt --check
+      
+    - name: Build WASM package for web
+      run: wasm-pack build --target web --out-dir html/pkg --dev
+      
+    - name: Create Pages deployment directory
+      run: |
+        mkdir -p pages-deploy
+        
+    - name: Copy HTML files to deployment directory
+      run: |
+        cp -r html/ pages-deploy/
+        touch pages-deploy/.nojekyll
+        echo "Deployed file structure:"
+        find pages-deploy -type f | head -20
+        
+    - name: Create index.html for GitHub Pages
+      run: |
+        cat > pages-deploy/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>ASCII ANSI Table WASM - Test Suite</title>
+            <style>
+                body {
+                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    line-height: 1.6;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f5f5f5;
+                }
+                
+                h1 {
+                    color: #333;
+                    text-align: center;
+                    border-bottom: 2px solid #007acc;
+                    padding-bottom: 10px;
+                }
+                
+                .container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    text-align: center;
+                }
+                
+                .button-container {
+                    margin: 30px 0;
+                }
+                
+                .btn {
+                    display: inline-block;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 15px 30px;
+                    text-decoration: none;
+                    border-radius: 8px;
+                    margin: 10px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    transition: transform 0.2s;
+                }
+                
+                .btn:hover {
+                    transform: translateY(-2px);
+                }
+                
+                .description {
+                    background: #e7f3ff;
+                    border: 1px solid #b3d9ff;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    text-align: left;
+                }
+                
+                .features {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    margin: 30px 0;
+                }
+                
+                .feature {
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 8px;
+                    border-left: 4px solid #007acc;
+                }
+                
+                .feature h3 {
+                    margin-top: 0;
+                    color: #007acc;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>🚀 ASCII ANSI Table WASM Test Suite</h1>
+            
+            <div class="container">
+                <div class="description">
+                    <h2>📋 About This Test Suite</h2>
+                    <p>This is a comprehensive test suite for the <strong>ascii-ansi-table-wasm</strong> library, a WebAssembly implementation for creating beautiful ASCII/UTF-8 tables with ANSI color support.</p>
+                    
+                    <p>The test suite includes performance benchmarks, ANSI to HTML conversion demos, and comprehensive table rendering tests.</p>
+                    
+                    <p>All tests include beautiful ANSI color formatting that gets converted to HTML for browser display!</p>
+                </div>
+                
+                <div class="button-container">
+                    <a href="comprehensive-test.html" class="btn">🧪 Run Comprehensive Test Suite</a>
+                    <a href="ansi-demo.html" class="btn">🎨 ANSI Color Demo</a>
+                    <a href="streaming-demo.html" class="btn">⚡ Streaming Demo</a>
+                    <br><br>
+                    <div style="margin-top: 20px;">
+                        <p><strong>Direct Links:</strong></p>
+                        <a href="comprehensive-test.html">Comprehensive Tests</a> |
+                        <a href="ansi-demo.html">ANSI Demo</a> |
+                        <a href="streaming-demo.html">Streaming Demo</a> |
+                        <a href="pkg/">WASM Package</a>
+                    </div>
+                </div>
+                
+                <div class="features">
+                    <div class="feature">
+                        <h3>🎨 ANSI to HTML Conversion</h3>
+                        <p>Advanced ANSI escape sequence conversion with support for colors, bold, underline, and background formatting.</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h3>⚡ Performance Testing</h3>
+                        <p>Comprehensive performance benchmarks including large table creation with 1000+ rows and complex multi-line content.</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h3>🌍 Unicode Support</h3>
+                        <p>Full Unicode and international character support with emoji, special symbols, and multilingual text.</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h3>📊 Table Rendering</h3>
+                        <p>Advanced table rendering with multi-line cell support, text wrapping, and height calculation.</p>
+                    </div>
+                </div>
+                
+                <div class="description">
+                    <h3>🔗 Repository</h3>
+                    <p>This test suite is automatically built and deployed from the GitHub repository. View the source code and contribute at:</p>
+                    <p><a href="https://github.com/${GITHUB_REPOSITORY}" target="_blank">https://github.com/${GITHUB_REPOSITORY}</a></p>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
+        
+    - name: Replace GitHub repository placeholder
+      run: |
+        sed -i "s|\${GITHUB_REPOSITORY}|${{ github.repository }}|g" pages-deploy/index.html
+        
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './pages-deploy'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
