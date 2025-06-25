@@ -5,7 +5,7 @@ fn generate_test_data() -> Vec<Vec<String>> {
     let mut data = Vec::new();
 
     // Create deterministic test data matching pattern (a{1-5}-){50}
-    let patterns = vec![
+    let patterns = [
         "a-aa-aaa-aaaa-aaaaa-",
         "aa-aaa-aaaa-aaaaa-a-",
         "aaa-aaaa-aaaaa-a-aa-",

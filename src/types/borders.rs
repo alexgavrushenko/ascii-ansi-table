@@ -53,17 +53,31 @@ impl BorderUserConfig {
             top_join: self.top_join.unwrap_or_else(|| default.top_join.clone()),
             top_left: self.top_left.unwrap_or_else(|| default.top_left.clone()),
             top_right: self.top_right.unwrap_or_else(|| default.top_right.clone()),
-            bottom_body: self.bottom_body.unwrap_or_else(|| default.bottom_body.clone()),
-            bottom_join: self.bottom_join.unwrap_or_else(|| default.bottom_join.clone()),
-            bottom_left: self.bottom_left.unwrap_or_else(|| default.bottom_left.clone()),
-            bottom_right: self.bottom_right.unwrap_or_else(|| default.bottom_right.clone()),
+            bottom_body: self
+                .bottom_body
+                .unwrap_or_else(|| default.bottom_body.clone()),
+            bottom_join: self
+                .bottom_join
+                .unwrap_or_else(|| default.bottom_join.clone()),
+            bottom_left: self
+                .bottom_left
+                .unwrap_or_else(|| default.bottom_left.clone()),
+            bottom_right: self
+                .bottom_right
+                .unwrap_or_else(|| default.bottom_right.clone()),
             body_left: self.body_left.unwrap_or_else(|| default.body_left.clone()),
-            body_right: self.body_right.unwrap_or_else(|| default.body_right.clone()),
+            body_right: self
+                .body_right
+                .unwrap_or_else(|| default.body_right.clone()),
             body_join: self.body_join.unwrap_or_else(|| default.body_join.clone()),
-            header_join: self.header_join.unwrap_or_else(|| default.header_join.clone()),
+            header_join: self
+                .header_join
+                .unwrap_or_else(|| default.header_join.clone()),
             join_body: self.join_body.unwrap_or_else(|| default.join_body.clone()),
             join_left: self.join_left.unwrap_or_else(|| default.join_left.clone()),
-            join_right: self.join_right.unwrap_or_else(|| default.join_right.clone()),
+            join_right: self
+                .join_right
+                .unwrap_or_else(|| default.join_right.clone()),
             join_join: self.join_join.unwrap_or_else(|| default.join_join.clone()),
         }
     }
@@ -143,6 +157,9 @@ pub fn get_border_characters(name: &str) -> Result<BorderConfig, crate::types::T
             join_right: "".to_string(),
             join_join: "".to_string(),
         }),
-        _ => Err(crate::types::TableError::InvalidConfig(format!("Unknown border style: {}", name))),
+        _ => Err(crate::types::TableError::InvalidConfig(format!(
+            "Unknown border style: {}",
+            name
+        ))),
     }
 }

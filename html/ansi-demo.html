@@ -215,9 +215,15 @@
             const section = document.createElement('div');
             section.className = 'demo-section';
             
+            // Debug: Check what we're actually sending to convertAnsiToHtml
+            console.log('Raw ANSI output:', ansiOutput);
+            console.log('First line bytes:', Array.from(ansiOutput.split('\n')[0] || '').map(c => c.charCodeAt(0)));
+            
             const htmlOutput = convertAnsiToHtml(ansiOutput);
             const strippedText = stripAnsi(ansiOutput);
             const displayWidth = calculateDisplayWidth(ansiOutput.split('\\n')[0] || '');
+            
+            console.log('HTML output:', htmlOutput);
             
             section.innerHTML = `
                 <h3>${title}</h3>
@@ -237,14 +243,14 @@
             
             const data = [
                 ['Color', 'Foreground', 'Background', 'Sample'],
-                ['Black', '\\x1b[30mBlack text\\x1b[0m', '\\x1b[40m\\x1b[37m Black BG \\x1b[0m', '\\x1b[30m\\x1b[47mSample\\x1b[0m'],
-                ['Red', '\\x1b[31mRed text\\x1b[0m', '\\x1b[41m\\x1b[37m Red BG \\x1b[0m', '\\x1b[31m\\x1b[47mSample\\x1b[0m'],
-                ['Green', '\\x1b[32mGreen text\\x1b[0m', '\\x1b[42m\\x1b[30m Green BG \\x1b[0m', '\\x1b[32m\\x1b[47mSample\\x1b[0m'],
-                ['Yellow', '\\x1b[33mYellow text\\x1b[0m', '\\x1b[43m\\x1b[30m Yellow BG \\x1b[0m', '\\x1b[33m\\x1b[40mSample\\x1b[0m'],
-                ['Blue', '\\x1b[34mBlue text\\x1b[0m', '\\x1b[44m\\x1b[37m Blue BG \\x1b[0m', '\\x1b[34m\\x1b[47mSample\\x1b[0m'],
-                ['Magenta', '\\x1b[35mMagenta text\\x1b[0m', '\\x1b[45m\\x1b[37m Magenta BG \\x1b[0m', '\\x1b[35m\\x1b[47mSample\\x1b[0m'],
-                ['Cyan', '\\x1b[36mCyan text\\x1b[0m', '\\x1b[46m\\x1b[30m Cyan BG \\x1b[0m', '\\x1b[36m\\x1b[40mSample\\x1b[0m'],
-                ['White', '\\x1b[37mWhite text\\x1b[0m', '\\x1b[47m\\x1b[30m White BG \\x1b[0m', '\\x1b[37m\\x1b[40mSample\\x1b[0m']
+                ['Black', '\x1b[30mBlack text\x1b[0m', '\x1b[40m\x1b[37m Black BG \x1b[0m', '\x1b[30m\x1b[47mSample\x1b[0m'],
+                ['Red', '\x1b[31mRed text\x1b[0m', '\x1b[41m\x1b[37m Red BG \x1b[0m', '\x1b[31m\x1b[47mSample\x1b[0m'],
+                ['Green', '\x1b[32mGreen text\x1b[0m', '\x1b[42m\x1b[30m Green BG \x1b[0m', '\x1b[32m\x1b[47mSample\x1b[0m'],
+                ['Yellow', '\x1b[33mYellow text\x1b[0m', '\x1b[43m\x1b[30m Yellow BG \x1b[0m', '\x1b[33m\x1b[40mSample\x1b[0m'],
+                ['Blue', '\x1b[34mBlue text\x1b[0m', '\x1b[44m\x1b[37m Blue BG \x1b[0m', '\x1b[34m\x1b[47mSample\x1b[0m'],
+                ['Magenta', '\x1b[35mMagenta text\x1b[0m', '\x1b[45m\x1b[37m Magenta BG \x1b[0m', '\x1b[35m\x1b[47mSample\x1b[0m'],
+                ['Cyan', '\x1b[36mCyan text\x1b[0m', '\x1b[46m\x1b[30m Cyan BG \x1b[0m', '\x1b[36m\x1b[40mSample\x1b[0m'],
+                ['White', '\x1b[37mWhite text\x1b[0m', '\x1b[47m\x1b[30m White BG \x1b[0m', '\x1b[37m\x1b[40mSample\x1b[0m']
             ];
             
             const table = new WasmTable();
@@ -264,12 +270,12 @@
             const data = [
                 ['Formatting', 'Example', 'ANSI Code'],
                 ['Normal', 'Regular text', 'No code'],
-                ['Bold', '\\x1b[1mBold text\\x1b[0m', '\\x1b[1m...\\x1b[0m'],
-                ['Italic', '\\x1b[3mItalic text\\x1b[0m', '\\x1b[3m...\\x1b[0m'],
-                ['Underline', '\\x1b[4mUnderlined text\\x1b[0m', '\\x1b[4m...\\x1b[0m'],
-                ['Strikethrough', '\\x1b[9mStrikethrough text\\x1b[0m', '\\x1b[9m...\\x1b[0m'],
-                ['Dim', '\\x1b[2mDim text\\x1b[0m', '\\x1b[2m...\\x1b[0m'],
-                ['Combined', '\\x1b[1m\\x1b[4m\\x1b[31mBold Red Underlined\\x1b[0m', 'Multiple codes']
+                ['Bold', '\x1b[1mBold text\x1b[0m', '\x1b[1m...\x1b[0m'],
+                ['Italic', '\x1b[3mItalic text\x1b[0m', '\x1b[3m...\x1b[0m'],
+                ['Underline', '\x1b[4mUnderlined text\x1b[0m', '\x1b[4m...\x1b[0m'],
+                ['Strikethrough', '\x1b[9mStrikethrough text\x1b[0m', '\x1b[9m...\x1b[0m'],
+                ['Dim', '\x1b[2mDim text\x1b[0m', '\x1b[2m...\x1b[0m'],
+                ['Combined', '\x1b[1m\x1b[4m\x1b[31mBold Red Underlined\x1b[0m', 'Multiple codes']
             ];
             
             const table = new WasmTable();
@@ -288,12 +294,12 @@
             
             const data = [
                 ['256-Color Palette', 'Foreground', 'Background'],
-                ['Bright Red', '\\x1b[38;5;196mBright Red Text\\x1b[0m', '\\x1b[48;5;196m\\x1b[30m Red BG \\x1b[0m'],
-                ['Orange', '\\x1b[38;5;208mOrange Text\\x1b[0m', '\\x1b[48;5;208m\\x1b[30m Orange BG \\x1b[0m'],
-                ['Bright Green', '\\x1b[38;5;46mBright Green Text\\x1b[0m', '\\x1b[48;5;46m\\x1b[30m Green BG \\x1b[0m'],
-                ['Sky Blue', '\\x1b[38;5;117mSky Blue Text\\x1b[0m', '\\x1b[48;5;117m\\x1b[30m Blue BG \\x1b[0m'],
-                ['Purple', '\\x1b[38;5;129mPurple Text\\x1b[0m', '\\x1b[48;5;129m\\x1b[37m Purple BG \\x1b[0m'],
-                ['Gray Scale', '\\x1b[38;5;240mDark Gray\\x1b[0m', '\\x1b[48;5;240m\\x1b[37m Gray BG \\x1b[0m']
+                ['Bright Red', '\x1b[38;5;196mBright Red Text\x1b[0m', '\x1b[48;5;196m\x1b[30m Red BG \x1b[0m'],
+                ['Orange', '\x1b[38;5;208mOrange Text\x1b[0m', '\x1b[48;5;208m\x1b[30m Orange BG \x1b[0m'],
+                ['Bright Green', '\x1b[38;5;46mBright Green Text\x1b[0m', '\x1b[48;5;46m\x1b[30m Green BG \x1b[0m'],
+                ['Sky Blue', '\x1b[38;5;117mSky Blue Text\x1b[0m', '\x1b[48;5;117m\x1b[30m Blue BG \x1b[0m'],
+                ['Purple', '\x1b[38;5;129mPurple Text\x1b[0m', '\x1b[48;5;129m\x1b[37m Purple BG \x1b[0m'],
+                ['Gray Scale', '\x1b[38;5;240mDark Gray\x1b[0m', '\x1b[48;5;240m\x1b[37m Gray BG \x1b[0m']
             ];
             
             const table = new WasmTable();
@@ -312,11 +318,11 @@
             
             const data = [
                 ['True Color (RGB)', 'Example', 'RGB Values'],
-                ['Coral', '\\x1b[38;2;255;127;80mCoral Text\\x1b[0m', 'rgb(255, 127, 80)'],
-                ['Teal', '\\x1b[38;2;0;128;128mTeal Text\\x1b[0m', 'rgb(0, 128, 128)'],
-                ['Gold', '\\x1b[38;2;255;215;0mGold Text\\x1b[0m', 'rgb(255, 215, 0)'],
-                ['Violet', '\\x1b[38;2;138;43;226mViolet Text\\x1b[0m', 'rgb(138, 43, 226)'],
-                ['Combined', '\\x1b[38;2;255;255;255m\\x1b[48;2;75;0;130mWhite on Indigo\\x1b[0m', 'Custom combo']
+                ['Coral', '\x1b[38;2;255;127;80mCoral Text\x1b[0m', 'rgb(255, 127, 80)'],
+                ['Teal', '\x1b[38;2;0;128;128mTeal Text\x1b[0m', 'rgb(0, 128, 128)'],
+                ['Gold', '\x1b[38;2;255;215;0mGold Text\x1b[0m', 'rgb(255, 215, 0)'],
+                ['Violet', '\x1b[38;2;138;43;226mViolet Text\x1b[0m', 'rgb(138, 43, 226)'],
+                ['Combined', '\x1b[38;2;255;255;255m\x1b[48;2;75;0;130mWhite on Indigo\x1b[0m', 'Custom combo']
             ];
             
             const table = new WasmTable();
@@ -335,34 +341,34 @@
             
             const data = [
                 [
-                    '\\x1b[1m\\x1b[4m\\x1b[34mProduct\\x1b[0m',
-                    '\\x1b[1m\\x1b[4m\\x1b[32mPrice\\x1b[0m',
-                    '\\x1b[1m\\x1b[4m\\x1b[33mStatus\\x1b[0m',
-                    '\\x1b[1m\\x1b[4m\\x1b[35mNotes\\x1b[0m'
+                    '\x1b[1m\x1b[4m\x1b[34mProduct\x1b[0m',
+                    '\x1b[1m\x1b[4m\x1b[32mPrice\x1b[0m',
+                    '\x1b[1m\x1b[4m\x1b[33mStatus\x1b[0m',
+                    '\x1b[1m\x1b[4m\x1b[35mNotes\x1b[0m'
                 ],
                 [
-                    '\\x1b[1mLaptop\\x1b[0m',
-                    '\\x1b[32m$999.99\\x1b[0m',
-                    '\\x1b[42m\\x1b[30m IN STOCK \\x1b[0m',
-                    '\\x1b[3mFast shipping\\x1b[0m'
+                    '\x1b[1mLaptop\x1b[0m',
+                    '\x1b[32m$999.99\x1b[0m',
+                    '\x1b[42m\x1b[30m IN STOCK \x1b[0m',
+                    '\x1b[3mFast shipping\x1b[0m'
                 ],
                 [
-                    '\\x1b[1mMouse\\x1b[0m',
-                    '\\x1b[32m$29.99\\x1b[0m',
-                    '\\x1b[43m\\x1b[30m LOW STOCK \\x1b[0m',
-                    '\\x1b[33m⚠ Only 3 left\\x1b[0m'
+                    '\x1b[1mMouse\x1b[0m',
+                    '\x1b[32m$29.99\x1b[0m',
+                    '\x1b[43m\x1b[30m LOW STOCK \x1b[0m',
+                    '\x1b[33m⚠ Only 3 left\x1b[0m'
                 ],
                 [
-                    '\\x1b[1mKeyboard\\x1b[0m',
-                    '\\x1b[31m\\x1b[9m$199.99\\x1b[0m \\x1b[32m$149.99\\x1b[0m',
-                    '\\x1b[41m\\x1b[37m OUT OF STOCK \\x1b[0m',
-                    '\\x1b[31m❌ Discontinued\\x1b[0m'
+                    '\x1b[1mKeyboard\x1b[0m',
+                    '\x1b[31m\x1b[9m$199.99\x1b[0m \x1b[32m$149.99\x1b[0m',
+                    '\x1b[41m\x1b[37m OUT OF STOCK \x1b[0m',
+                    '\x1b[31m❌ Discontinued\x1b[0m'
                 ],
                 [
-                    '\\x1b[1mMonitor\\x1b[0m',
-                    '\\x1b[32m$299.99\\x1b[0m',
-                    '\\x1b[46m\\x1b[30m PRE-ORDER \\x1b[0m',
-                    '\\x1b[36m📅 Ships next week\\x1b[0m'
+                    '\x1b[1mMonitor\x1b[0m',
+                    '\x1b[32m$299.99\x1b[0m',
+                    '\x1b[46m\x1b[30m PRE-ORDER \x1b[0m',
+                    '\x1b[36m📅 Ships next week\x1b[0m'
                 ]
             ];
             
