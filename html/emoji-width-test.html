@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emoji Width Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .test-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 15px 0;
+            border: 2px solid #007acc;
+        }
+        .back-link {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Emoji Width Test</h1>
+    
+    <div class="container">
+        <h2>Testing Emoji Alignment in Tables</h2>
+        <p>This test demonstrates that emojis are now properly constrained to 2-character width in HTML, matching the Rust width calculation.</p>
+        
+        <h3>Test Results:</h3>
+        <div class="test-output" id="output">Loading...</div>
+        
+        <div style="margin-top: 20px;">
+            <strong>Expected behavior:</strong> Emojis should be wrapped in spans with <code>width: 2ch</code> and aligned properly within table cells, preventing layout issues.
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="index.html" class="back-link">← Back to Test Directory</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { WasmTable, convertAnsiToHtml } from './pkg/ascii_ansi_table.js';
+        
+        async function runEmojiTest() {
+            await init();
+            
+            // Create test data with emojis that should align properly
+            const testData = [
+                ['Status', 'Task', 'Progress'],
+                ['✅ Done', 'Setup project', '100%'],
+                ['🚀 Active', 'Build features', '75%'],
+                ['⚠ Pending', 'Write tests', '50%'],
+                ['📦 Shipped', 'Deploy code', '100%'],
+                ['🎯 Planning', 'Next phase', '25%']
+            ];
+            
+            const table = new WasmTable();
+            table.setData(testData);
+            
+            const rawOutput = table.render();
+            const htmlOutput = convertAnsiToHtml(rawOutput);
+            
+            document.getElementById('output').innerHTML = htmlOutput;
+            
+            // Log the HTML to inspect emoji wrapping
+            console.log('HTML with emoji spans:', htmlOutput);
+            
+            // Check if emojis are wrapped
+            const hasEmojiSpans = htmlOutput.includes('width: 2ch');
+            if (hasEmojiSpans) {
+                console.log('✅ Emojis are properly wrapped with fixed width!');
+            } else {
+                console.log('❌ Emoji wrapping not found');
+            }
+        }
+        
+        runEmojiTest();
+    </script>
+</body>
+</html>

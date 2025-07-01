@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII ANSI Table - Streaming Multiline Demo</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .demo-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre;
+            overflow-x: auto;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #007acc;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+        
+        .settings {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .settings label {
+            display: inline-block;
+            margin: 5px 15px 5px 0;
+            font-weight: bold;
+        }
+        
+        .settings input, .settings select {
+            margin: 0 10px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.running {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 0;
+            transition: background 0.2s;
+        }
+        
+        .back-link:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌊 ASCII ANSI Table - Streaming Multiline Demo</h1>
+    
+    <div class="container">
+        <div class="info-box">
+            <strong>🎯 About this Demo:</strong> This demo mimics the CLI streaming behavior exactly, where rows are added one by one with proper border handling. 
+            It showcases multiline cell support in streaming mode, just like the CLI <code>stream-demo</code> command.
+            <br><br>
+            <strong>Key Features:</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Multiline product names (Gaming\nLaptop, Wireless\nMouse, etc.)</li>
+                <li>Progressive row addition with proper border replacement</li>
+                <li>ANSI color support with HTML conversion</li>
+                <li>Same data structure as CLI demo</li>
+            </ul>
+        </div>
+        
+        <div class="settings">
+            <h3>Demo Settings</h3>
+            <label>Rows: <input type="number" id="rows" min="3" max="15" value="5"></label>
+            <label>Delay (ms): <input type="number" id="delay" min="200" max="3000" value="800"></label>
+            <label>Colors: <input type="checkbox" id="colors" checked></label>
+            <label>Border Style: 
+                <select id="border">
+                    <option value="honeywell">Honeywell (Default)</option>
+                    <option value="ramac">RAMAC (ASCII)</option>
+                    <option value="norc">NORC</option>
+                    <option value="void">Void</option>
+                </select>
+            </label>
+        </div>
+        
+        <div class="controls">
+            <button id="start-demo" onclick="startStreamingDemo()" disabled>🚀 Start Streaming Demo</button>
+            <button id="stop-demo" onclick="stopStreamingDemo()" disabled>🛑 Stop Demo</button>
+            <button onclick="clearOutput()">🗑️ Clear Output</button>
+        </div>
+        
+        <div class="status" id="status">Loading WASM module...</div>
+        
+        <div class="demo-output" id="output"></div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="index.html" class="back-link">← Back to Test Directory</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { WasmTable, table, convertAnsiToHtml } from './pkg/ascii_ansi_table.js';
+        
+        let wasmModule = null;
+        let streamingTimeout = null;
+        let currentRow = 0;
+        let totalRows = 0;
+        let tableData = [];
+        let streamingActive = false;
+        
+        async function initializeWasm() {
+            try {
+                wasmModule = await init();
+                document.getElementById('status').textContent = '✅ Ready to start streaming demo';
+                document.getElementById('status').className = 'status ready';
+                document.getElementById('start-demo').disabled = false;
+                return true;
+            } catch (error) {
+                document.getElementById('status').textContent = '❌ Failed to load WASM module: ' + error.message;
+                document.getElementById('status').className = 'status error';
+                console.error('WASM initialization failed:', error);
+                return false;
+            }
+        }
+        
+        // Generate the same multiline data as CLI demo
+        function generateMultilineStreamingData(rows, useColors) {
+            const data = [];
+            
+            // Header row
+            if (useColors) {
+                data.push([
+                    '\u001b[1;36mID\u001b[0m',
+                    '\u001b[1;32mProduct\u001b[0m', 
+                    '\u001b[1;33mPrice\u001b[0m',
+                    '\u001b[1;35mStatus\u001b[0m'
+                ]);
+            } else {
+                data.push(['ID', 'Product', 'Price', 'Status']);
+            }
+            
+            // Multiline product names (same as CLI)
+            const products = [
+                "Gaming\nLaptop",
+                "Wireless\nMouse", 
+                "Mechanical\nKeyboard",
+                "4K\nMonitor",
+                "Bluetooth\nSpeakers",
+                "HD\nWebcam",
+                "Noise-Cancelling\nHeadphones",
+                "Android\nTablet",
+                "Smartphone\nPro",
+                "Fast\nCharger",
+                "USB-C\nCable", 
+                "Power\nAdapter",
+                "WiFi\nRouter",
+                "Network\nSwitch",
+                "Laser\nPrinter"
+            ];
+            
+            const statuses = ["Active", "Sold", "Pending", "Shipped", "Delivered"];
+            
+            for (let i = 0; i < rows; i++) {
+                const product = products[i % products.length];
+                const status = statuses[i % statuses.length];
+                const price = `$${(i + 1) * 25 + 99}`;
+                
+                if (useColors) {
+                    const statusFormatted = (() => {
+                        switch (status) {
+                            case "Active": return `\u001b[32m✓ ${status}\u001b[0m`;
+                            case "Sold": return `\u001b[31m✗ ${status}\u001b[0m`;
+                            case "Pending": return `\u001b[33m⚠ ${status}\u001b[0m`;
+                            case "Shipped": return `\u001b[36m🚚 ${status}\u001b[0m`;
+                            case "Delivered": return `\u001b[35m📦 ${status}\u001b[0m`;
+                            default: return status;
+                        }
+                    })();
+                    
+                    data.push([
+                        `\u001b[37m${i + 1}\u001b[0m`,
+                        `\u001b[34m${product}\u001b[0m`,
+                        `\u001b[32m${price}\u001b[0m`,
+                        statusFormatted
+                    ]);
+                } else {
+                    data.push([
+                        `${i + 1}`,
+                        product,
+                        price,
+                        status
+                    ]);
+                }
+            }
+            
+            return data;
+        }
+        
+        // Simple streaming approach - just render progressively and show the complete table each time
+        function renderStreamingTable(data, currentRowCount, borderStyle, useColors) {
+            try {
+                // Take header + current number of rows
+                const partialData = data.slice(0, currentRowCount + 1);
+                const wasmTable = new WasmTable();
+                wasmTable.setData(partialData);
+                
+                // Set border configuration if not default
+                if (borderStyle !== 'honeywell') {
+                    const borderConfig = getBorderConfig(borderStyle);
+                    if (borderConfig) {
+                        wasmTable.setBorder(borderConfig);
+                    }
+                }
+                
+                const output = wasmTable.render();
+                // Convert ANSI to HTML for proper display
+                return convertAnsiToHtml(output);
+            } catch (error) {
+                console.error('Error rendering table:', error);
+                return `<span style="color: red;">Error rendering table: ${error.message}</span>`;
+            }
+        }
+        
+        function getBorderConfig(style) {
+            const configs = {
+                'honeywell': null, // Default
+                'ramac': {
+                    topLeft: '+', topRight: '+', topBody: '-', topJoin: '+',
+                    bottomLeft: '+', bottomRight: '+', bottomBody: '-', bottomJoin: '+',
+                    bodyLeft: '|', bodyRight: '|', bodyJoin: '|',
+                    joinLeft: '+', joinRight: '+', joinBody: '-', joinJoin: '+',
+                    headerJoin: '+'
+                },
+                'norc': {
+                    topLeft: '╔', topRight: '╗', topBody: '═', topJoin: '╦',
+                    bottomLeft: '╚', bottomRight: '╝', bottomBody: '═', bottomJoin: '╩',
+                    bodyLeft: '║', bodyRight: '║', bodyJoin: '║',
+                    joinLeft: '╠', joinRight: '╣', joinBody: '═', joinJoin: '╬',
+                    headerJoin: '╬'
+                },
+                'void': {
+                    topLeft: ' ', topRight: ' ', topBody: ' ', topJoin: ' ',
+                    bottomLeft: ' ', bottomRight: ' ', bottomBody: ' ', bottomJoin: ' ',
+                    bodyLeft: ' ', bodyRight: ' ', bodyJoin: ' ',
+                    joinLeft: ' ', joinRight: ' ', joinBody: ' ', joinJoin: ' ',
+                    headerJoin: ' '
+                }
+            };
+            return configs[style] || null;
+        }
+        
+        window.startStreamingDemo = async function() {
+            if (!wasmModule) {
+                alert('WASM module not initialized');
+                return;
+            }
+            
+            if (streamingActive) {
+                return;
+            }
+            
+            totalRows = parseInt(document.getElementById('rows').value);
+            const delay = parseInt(document.getElementById('delay').value);
+            const useColors = document.getElementById('colors').checked;
+            const borderStyle = document.getElementById('border').value;
+            
+            tableData = generateMultilineStreamingData(totalRows, useColors);
+            currentRow = 0;
+            streamingActive = true;
+            
+            document.getElementById('start-demo').disabled = true;
+            document.getElementById('stop-demo').disabled = false;
+            document.getElementById('status').textContent = `🌊 Streaming ${totalRows} rows...`;
+            document.getElementById('status').className = 'status running';
+            
+            const output = document.getElementById('output');
+            output.textContent = ''; // Clear output
+            
+            // Initialize streaming demo header
+            output.textContent = '🚀 ASCII ANSI Table Streaming Demo\\n';
+            output.textContent += `📊 Streaming ${totalRows} rows with ${delay}ms delay\\n`;
+            output.textContent += `🎨 Border style: ${borderStyle}\\n`;
+            if (useColors) {
+                output.textContent += '🌈 ANSI colors: enabled\\n';
+            }
+            output.textContent += '────────────────────────────────────────\\n';
+            
+            // Start with just the header
+            const headerHtml = renderStreamingTable(tableData, 0, borderStyle, useColors);
+            output.innerHTML = output.textContent.replace(/\\n/g, '<br>') + '<br>' + headerHtml;
+            
+            // Stream rows one by one
+            function streamNextRow() {
+                if (!streamingActive || currentRow >= totalRows) {
+                    stopStreamingDemo();
+                    return;
+                }
+                
+                currentRow++;
+                
+                try {
+                    // Render complete table up to current row (header + currentRow rows)
+                    const tableHtml = renderStreamingTable(tableData, currentRow, borderStyle, useColors);
+                    
+                    // Update display - keep the intro text and show progressive table
+                    const introText = '🚀 ASCII ANSI Table Streaming Demo<br>' +
+                                     `📊 Streaming ${totalRows} rows with ${delay}ms delay<br>` +
+                                     `🎨 Border style: ${borderStyle}<br>` +
+                                     (useColors ? '🌈 ANSI colors: enabled<br>' : '') +
+                                     '────────────────────────────────────────<br><br>';
+                    
+                    output.innerHTML = introText + tableHtml;
+                    
+                    // Update status
+                    document.getElementById('status').textContent = 
+                        `🌊 Streaming... ${currentRow}/${totalRows} rows (${Math.round((currentRow/totalRows)*100)}%)`;
+                    
+                    output.scrollTop = output.scrollHeight;
+                    
+                    if (currentRow < totalRows && streamingActive) {
+                        streamingTimeout = setTimeout(streamNextRow, delay);
+                    } else {
+                        stopStreamingDemo();
+                    }
+                } catch (error) {
+                    console.error('Streaming error:', error);
+                    output.innerHTML += `<br><span style="color: red;">Error: ${error.message}</span>`;
+                    stopStreamingDemo();
+                }
+            }
+            
+            // Start streaming after initial header delay
+            streamingTimeout = setTimeout(streamNextRow, delay);
+        };
+        
+        window.stopStreamingDemo = function() {
+            streamingActive = false;
+            
+            if (streamingTimeout) {
+                clearTimeout(streamingTimeout);
+                streamingTimeout = null;
+            }
+            
+            document.getElementById('start-demo').disabled = false;
+            document.getElementById('stop-demo').disabled = true;
+            
+            if (currentRow >= totalRows) {
+                document.getElementById('status').textContent = '✅ Streaming demo completed!';
+                document.getElementById('status').className = 'status ready';
+                
+                // Add completion message
+                const output = document.getElementById('output');
+                output.innerHTML += `<br><br>✅ Streaming demo complete! ${totalRows} rows processed.<br>`;
+                output.innerHTML += '💡 Try different options: more rows, different delays, or border styles!';
+            } else {
+                document.getElementById('status').textContent = '⏹️ Streaming demo stopped';
+                document.getElementById('status').className = 'status ready';
+            }
+        };
+        
+        window.clearOutput = function() {
+            document.getElementById('output').innerHTML = '';
+            if (streamingActive) {
+                stopStreamingDemo();
+            }
+            currentRow = 0;
+        };
+        
+        // Initialize WASM module
+        initializeWasm();
+    </script>
+</body>
+</html>
