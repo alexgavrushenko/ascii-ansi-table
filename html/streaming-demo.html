@@ -187,10 +187,10 @@
             
             if (useColors) {
                 data.push([
-                    '\\x1b[1m\\x1b[34mTimestamp\\x1b[0m',
-                    '\\x1b[1m\\x1b[32mEvent\\x1b[0m',
-                    '\\x1b[1m\\x1b[33mStatus\\x1b[0m',
-                    '\\x1b[1m\\x1b[35mDetails\\x1b[0m'
+                    '\u001b[1m\u001b[34mTimestamp\u001b[0m',
+                    '\u001b[1m\u001b[32mEvent\u001b[0m',
+                    '\u001b[1m\u001b[33mStatus\u001b[0m',
+                    '\u001b[1m\u001b[35mDetails\u001b[0m'
                 ]);
             } else {
                 data.push(['Timestamp', 'Event', 'Status', 'Details']);
@@ -207,16 +207,16 @@
                 
                 if (useColors) {
                     const statusColor = {
-                        'Success': '\\x1b[32m',
-                        'Failed': '\\x1b[31m',
-                        'Pending': '\\x1b[33m',
-                        'Processing': '\\x1b[36m'
-                    }[status] || '\\x1b[37m';
+                        'Success': '\u001b[32m',
+                        'Failed': '\u001b[31m',
+                        'Pending': '\u001b[33m',
+                        'Processing': '\u001b[36m'
+                    }[status] || '\u001b[37m';
                     
                     data.push([
-                        `\\x1b[90m${timestamp}\\x1b[0m`,
+                        `\u001b[90m${timestamp}\u001b[0m`,
                         event,
-                        `${statusColor}${status}\\x1b[0m`,
+                        `${statusColor}${status}\u001b[0m`,
                         details
                     ]);
                 } else {
