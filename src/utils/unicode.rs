@@ -108,6 +108,7 @@ mod tests {
         assert_eq!(calculate_string_width("✅"), 2);  // Check mark emoji
         assert_eq!(calculate_string_width("🎯"), 2);  // Target emoji
         assert_eq!(calculate_string_width("🌊"), 2);  // Wave emoji
+        assert_eq!(calculate_string_width("❌"), 2);  // Cross mark emoji
         println!("Symbol width analysis with Unicode points:");
         println!("'✓' (U+{:04X}) -> {} chars", '✓' as u32, calculate_string_width("✓"));
         println!("'✗' (U+{:04X}) -> {} chars", '✗' as u32, calculate_string_width("✗"));
@@ -115,6 +116,7 @@ mod tests {
         println!("'🚀' (U+{:04X}) -> {} chars", '🚀' as u32, calculate_string_width("🚀"));
         println!("'📦' (U+{:04X}) -> {} chars", '📦' as u32, calculate_string_width("📦"));
         println!("'✅' (U+{:04X}) -> {} chars", '✅' as u32, calculate_string_width("✅"));
+        println!("'❌' (U+{:04X}) -> {} chars", '❌' as u32, calculate_string_width("❌"));
     }
 
     #[test]
