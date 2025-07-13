@@ -100,23 +100,51 @@ mod tests {
     #[test]
     fn test_symbol_widths() {
         // Test various symbols used in our demos
-        assert_eq!(calculate_string_width("✓"), 1);   // Check mark
-        assert_eq!(calculate_string_width("✗"), 1);   // X mark  
-        assert_eq!(calculate_string_width("⚠"), 1);   // Warning sign
-        assert_eq!(calculate_string_width("🚀"), 2);  // Rocket emoji
-        assert_eq!(calculate_string_width("📦"), 2);  // Package emoji
-        assert_eq!(calculate_string_width("✅"), 2);  // Check mark emoji
-        assert_eq!(calculate_string_width("🎯"), 2);  // Target emoji
-        assert_eq!(calculate_string_width("🌊"), 2);  // Wave emoji
-        assert_eq!(calculate_string_width("❌"), 2);  // Cross mark emoji
+        assert_eq!(calculate_string_width("✓"), 1); // Check mark
+        assert_eq!(calculate_string_width("✗"), 1); // X mark
+        assert_eq!(calculate_string_width("⚠"), 1); // Warning sign
+        assert_eq!(calculate_string_width("🚀"), 2); // Rocket emoji
+        assert_eq!(calculate_string_width("📦"), 2); // Package emoji
+        assert_eq!(calculate_string_width("✅"), 2); // Check mark emoji
+        assert_eq!(calculate_string_width("🎯"), 2); // Target emoji
+        assert_eq!(calculate_string_width("🌊"), 2); // Wave emoji
+        assert_eq!(calculate_string_width("❌"), 2); // Cross mark emoji
         println!("Symbol width analysis with Unicode points:");
-        println!("'✓' (U+{:04X}) -> {} chars", '✓' as u32, calculate_string_width("✓"));
-        println!("'✗' (U+{:04X}) -> {} chars", '✗' as u32, calculate_string_width("✗"));
-        println!("'⚠' (U+{:04X}) -> {} chars", '⚠' as u32, calculate_string_width("⚠"));
-        println!("'🚀' (U+{:04X}) -> {} chars", '🚀' as u32, calculate_string_width("🚀"));
-        println!("'📦' (U+{:04X}) -> {} chars", '📦' as u32, calculate_string_width("📦"));
-        println!("'✅' (U+{:04X}) -> {} chars", '✅' as u32, calculate_string_width("✅"));
-        println!("'❌' (U+{:04X}) -> {} chars", '❌' as u32, calculate_string_width("❌"));
+        println!(
+            "'✓' (U+{:04X}) -> {} chars",
+            '✓' as u32,
+            calculate_string_width("✓")
+        );
+        println!(
+            "'✗' (U+{:04X}) -> {} chars",
+            '✗' as u32,
+            calculate_string_width("✗")
+        );
+        println!(
+            "'⚠' (U+{:04X}) -> {} chars",
+            '⚠' as u32,
+            calculate_string_width("⚠")
+        );
+        println!(
+            "'🚀' (U+{:04X}) -> {} chars",
+            '🚀' as u32,
+            calculate_string_width("🚀")
+        );
+        println!(
+            "'📦' (U+{:04X}) -> {} chars",
+            '📦' as u32,
+            calculate_string_width("📦")
+        );
+        println!(
+            "'✅' (U+{:04X}) -> {} chars",
+            '✅' as u32,
+            calculate_string_width("✅")
+        );
+        println!(
+            "'❌' (U+{:04X}) -> {} chars",
+            '❌' as u32,
+            calculate_string_width("❌")
+        );
     }
 
     #[test]

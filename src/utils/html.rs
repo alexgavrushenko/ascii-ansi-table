@@ -97,18 +97,18 @@ pub fn convert_ansi_to_html(text: &str) -> String {
     while result.contains("\x1b[0m") {
         let reset_pos = result.find("\x1b[0m").unwrap();
         let mut replacement = String::new();
-        
+
         // Count how many spans are currently open at this position
         let before_reset = &result[..reset_pos];
         let span_opens = before_reset.matches("<span").count();
         let span_closes = before_reset.matches("</span>").count();
         let spans_to_close = span_opens.saturating_sub(span_closes);
-        
+
         // Close all open spans
         for _ in 0..spans_to_close {
             replacement.push_str("</span>");
         }
-        
+
         result = result.replacen("\x1b[0m", &replacement, 1);
     }
 
@@ -132,11 +132,11 @@ pub fn convert_ansi_to_html(text: &str) -> String {
 
 fn wrap_emojis_with_fixed_width(text: &str) -> String {
     let mut result = String::new();
-    
+
     for ch in text.chars() {
         // Use unicode-width crate to determine actual character width
         let width = ch.width().unwrap_or(1);
-        
+
         if width == 2 {
             // Wrap 2-width characters in fixed-width spans
             result.push_str(&format!(
@@ -148,7 +148,7 @@ fn wrap_emojis_with_fixed_width(text: &str) -> String {
             result.push(ch);
         }
     }
-    
+
     result
 }
 
@@ -257,20 +257,30 @@ mod tests {
         // Test with mix of 1-width symbols and 2-width emojis
         let input = "Status: ✅ Success ✓ Done 🚀 Launch ⚠ Warning ❌ Error";
         let result = convert_ansi_to_html(input);
-        
+
         // Should wrap 2-width emojis in fixed-width spans
-        assert!(result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">✅</span>"#));
-        assert!(result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">🚀</span>"#));
-        assert!(result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">❌</span>"#));
-        
+        assert!(result.contains(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">✅</span>"#
+        ));
+        assert!(result.contains(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">🚀</span>"#
+        ));
+        assert!(result.contains(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">❌</span>"#
+        ));
+
         // Should NOT wrap 1-width symbols
-        assert!(!result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">✓</span>"#));
-        assert!(!result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">⚠</span>"#));
-        
+        assert!(!result.contains(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">✓</span>"#
+        ));
+        assert!(!result.contains(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">⚠</span>"#
+        ));
+
         // Should still contain the unwrapped 1-width symbols
         assert!(result.contains("✓"));
         assert!(result.contains("⚠"));
-        
+
         // Basic text should be preserved
         assert!(result.contains("Status:"));
         assert!(result.contains("Success"));
