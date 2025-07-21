@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII ANSI Table WASM - Streaming Demo</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .demo-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #007acc;
+        }
+        
+        .settings {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .settings label {
+            display: inline-block;
+            margin: 5px 15px 5px 0;
+            font-weight: bold;
+        }
+        
+        .settings input, .settings select {
+            margin: 0 10px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.running {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌊 ASCII ANSI Table WASM - Streaming Demo</h1>
+    
+    <div class="container">
+        <div class="warning">
+            <strong>⚠️ Note:</strong> This demo simulates streaming behavior using regular table rendering. 
+            Full streaming API implementation is pending (see TODO_JS.md).
+        </div>
+        
+        <div class="settings">
+            <h3>Demo Settings</h3>
+            <label>Rows: <input type="number" id="rows" min="5" max="100" value="10"></label>
+            <label>Delay (ms): <input type="number" id="delay" min="100" max="5000" value="1000"></label>
+            <label>Colors: <input type="checkbox" id="colors" checked></label>
+            <label>Border Style: 
+                <select id="border">
+                    <option value="honeywell">Honeywell (Default)</option>
+                    <option value="ramac">RAMAC (ASCII)</option>
+                </select>
+            </label>
+        </div>
+        
+        <div class="controls">
+            <button id="start-demo" onclick="startStreamingDemo()" disabled>Start Streaming Demo</button>
+            <button id="stop-demo" onclick="stopStreamingDemo()" disabled>Stop Demo</button>
+            <button onclick="clearOutput()">Clear Output</button>
+        </div>
+        
+        <div class="status" id="status">Loading WASM module...</div>
+        
+        <div class="demo-output" id="output"></div>
+    </div>
+
+    <script type="module">
+        import init, { WasmTable, table, convertAnsiToHtml } from './pkg/ascii_ansi_table.js';
+        import { createSimpleTable, createColorfulTable, measureTime } from './test-utils.js';
+        
+        let wasmModule = null;
+        let streamingInterval = null;
+        let currentRow = 0;
+        let totalRows = 0;
+        let tableData = [];
+        
+        async function initializeWasm() {
+            try {
+                wasmModule = await init();
+                document.getElementById('status').textContent = 'Ready to start streaming demo';
+                document.getElementById('status').className = 'status ready';
+                document.getElementById('start-demo').disabled = false;
+                return true;
+            } catch (error) {
+                document.getElementById('status').textContent = 'Failed to load WASM module: ' + error.message;
+                document.getElementById('status').className = 'status error';
+                console.error('WASM initialization failed:', error);
+                return false;
+            }
+        }
+        
+        function generateStreamingData(rows, useColors) {
+            const data = [];
+            
+            if (useColors) {
+                data.push([
+                    '\\x1b[1m\\x1b[34mTimestamp\\x1b[0m',
+                    '\\x1b[1m\\x1b[32mEvent\\x1b[0m',
+                    '\\x1b[1m\\x1b[33mStatus\\x1b[0m',
+                    '\\x1b[1m\\x1b[35mDetails\\x1b[0m'
+                ]);
+            } else {
+                data.push(['Timestamp', 'Event', 'Status', 'Details']);
+            }
+            
+            const events = ['Login', 'Logout', 'Purchase', 'View', 'Error', 'Warning', 'Info'];
+            const statuses = ['Success', 'Failed', 'Pending', 'Processing'];
+            
+            for (let i = 0; i < rows; i++) {
+                const timestamp = new Date(Date.now() - (rows - i) * 60000).toISOString().slice(11, 19);
+                const event = events[Math.floor(Math.random() * events.length)];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                const details = `Event #${i + 1} - ${Math.random().toString(36).substring(7)}`;
+                
+                if (useColors) {
+                    const statusColor = {
+                        'Success': '\\x1b[32m',
+                        'Failed': '\\x1b[31m',
+                        'Pending': '\\x1b[33m',
+                        'Processing': '\\x1b[36m'
+                    }[status] || '\\x1b[37m';
+                    
+                    data.push([
+                        `\\x1b[90m${timestamp}\\x1b[0m`,
+                        event,
+                        `${statusColor}${status}\\x1b[0m`,
+                        details
+                    ]);
+                } else {
+                    data.push([timestamp, event, status, details]);
+                }
+            }
+            
+            return data;
+        }
+        
+        function renderProgressiveTable(data, currentRowCount) {
+            const partialData = data.slice(0, currentRowCount + 1);
+            const wasmTable = new WasmTable();
+            
+            try {
+                wasmTable.setData(partialData);
+                return wasmTable.render();
+            } catch (error) {
+                console.error('Table rendering error:', error);
+                return `Error rendering table: ${error.message}`;
+            }
+        }
+        
+        window.startStreamingDemo = async function() {
+            if (!wasmModule) {
+                alert('WASM module not initialized');
+                return;
+            }
+            
+            totalRows = parseInt(document.getElementById('rows').value);
+            const delay = parseInt(document.getElementById('delay').value);
+            const useColors = document.getElementById('colors').checked;
+            
+            tableData = generateStreamingData(totalRows, useColors);
+            currentRow = 0;
+            
+            document.getElementById('start-demo').disabled = true;
+            document.getElementById('stop-demo').disabled = false;
+            document.getElementById('status').textContent = `Streaming ${totalRows} rows...`;
+            document.getElementById('status').className = 'status running';
+            
+            const output = document.getElementById('output');
+            output.innerHTML = 'Starting streaming demo...\\n\\n';
+            
+            streamingInterval = setInterval(() => {
+                currentRow++;
+                
+                if (currentRow > totalRows) {
+                    stopStreamingDemo();
+                    return;
+                }
+                
+                const tableOutput = renderProgressiveTable(tableData, currentRow);
+                
+                const htmlOutput = convertAnsiToHtml(tableOutput);
+                output.innerHTML = `<p>Streaming demo - Row ${currentRow}/${totalRows}</p><div>${htmlOutput}</div>`;
+                
+                output.scrollTop = output.scrollHeight;
+                
+                document.getElementById('status').textContent = 
+                    `Streaming... ${currentRow}/${totalRows} rows (${Math.round((currentRow/totalRows)*100)}%)`;
+                
+            }, delay);
+        };
+        
+        window.stopStreamingDemo = function() {
+            if (streamingInterval) {
+                clearInterval(streamingInterval);
+                streamingInterval = null;
+            }
+            
+            document.getElementById('start-demo').disabled = false;
+            document.getElementById('stop-demo').disabled = true;
+            
+            if (currentRow >= totalRows) {
+                document.getElementById('status').textContent = 'Streaming demo completed!';
+                document.getElementById('status').className = 'status ready';
+            } else {
+                document.getElementById('status').textContent = 'Streaming demo stopped';
+                document.getElementById('status').className = 'status ready';
+            }
+        };
+        
+        window.clearOutput = function() {
+            document.getElementById('output').innerHTML = '';
+            if (streamingInterval) {
+                stopStreamingDemo();
+            }
+        };
+        
+        async function runPerformanceTest() {
+            if (!wasmModule) return;
+            
+            const testData = generateStreamingData(100, true);
+            const wasmTable = new WasmTable();
+            
+            const { result, time } = await measureTime(() => {
+                wasmTable.setData(testData);
+                return wasmTable.render();
+            });
+            
+            console.log(`Performance test: 100 rows rendered in ${time.toFixed(2)}ms`);
+            
+            const output = document.getElementById('output');
+            output.innerHTML += `\\n\\n--- Performance Test ---\\nRendered 100 rows in ${time.toFixed(2)}ms\\n\\n`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const controls = document.querySelector('.controls');
+            const perfButton = document.createElement('button');
+            perfButton.textContent = 'Run Performance Test';
+            perfButton.onclick = runPerformanceTest;
+            controls.appendChild(perfButton);
+        });
+        
+        initializeWasm();
+    </script>
+</body>
+</html>

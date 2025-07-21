@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII ANSI Table WASM - Test Directory</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        
+        a {
+            color: #007acc;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 ASCII ANSI Table WASM Test Directory</h1>
+    
+    <div class="container">
+        <h2>Available Test Files:</h2>
+        
+        <ul>
+            <li>
+                <a href="comprehensive-test.html" class="btn">🚀 Comprehensive Test Suite</a>
+                <span class="status ready">READY</span>
+                <p>Full interactive test suite with functional tests</p>
+            </li>
+            
+            <li>
+                <a href="streaming-demo.html">🌊 Streaming Demo</a>
+                <span class="status ready">READY</span>
+                <p>Real-time streaming table demonstration</p>
+            </li>
+            
+            <li>
+                <a href="ansi-demo.html">🎨 ANSI Color Demo</a>
+                <span class="status ready">READY</span>
+                <p>ANSI color and formatting demonstration</p>
+            </li>
+            
+            <li>
+                <a href="#" onclick="runPerformanceTests(); return false;" class="btn">⚡ Performance Benchmarks</a>
+                <span class="status ready">READY</span>
+                <p>Performance testing suite - runs large table tests with 1000 rows and repeated newlines</p>
+            </li>
+            
+            <li>
+                <a href="test-suite-synchronized.js">📋 Functional Test Suite (JS)</a>
+                <span class="status ready">READY</span>
+                <p>JavaScript module with functional tests for core table features</p>
+            </li>
+            
+            <li>
+                <a href="test-suite-performance.js">⚡ Performance Test Suite (JS)</a>
+                <span class="status ready">READY</span>
+                <p>JavaScript module with performance tests including large table benchmarks</p>
+            </li>
+            
+            <li>
+                <a href="test-utils.js">🔧 Test Utilities</a>
+                <span class="status ready">READY</span>
+                <p>Utility functions for testing WASM bindings</p>
+            </li>
+        </ul>
+        
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="../" class="btn">← Back to Main Project</a>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 5px;">
+            <h3>✅ Implementation Status</h3>
+            <p><strong>Update:</strong> WASM bindings have been fixed and core test suite is now functional!</p>
+            <p>Most test files are now READY and can be used to test the ASCII ANSI Table WASM functionality.</p>
+            <p>See <code>TODO_JS.md</code> in the project root for remaining enhancement tasks.</p>
+        </div>
+    </div>
+
+    <div id="performance-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 800px; max-height: 80%; overflow-y: auto;">
+            <h2>⚡ Performance Test Results</h2>
+            <div id="performance-results"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="closePerformanceModal()" style="padding: 10px 20px; background: #007acc; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { WasmTable } from './pkg/ascii_ansi_table.js';
+        import { measureTime } from './test-utils.js';
+        import { createPerformanceTestSuite } from './test-suite-performance.js';
+        
+        let wasmModule = null;
+
+        
+        async function initializeWasm() {
+            try {
+                wasmModule = await init();
+                console.log('WASM module initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('WASM initialization failed:', error);
+                alert('Failed to load WASM module: ' + error.message);
+                return false;
+            }
+        }
+
+        window.runPerformanceTests = async function() {
+            if (!wasmModule) {
+                const initialized = await initializeWasm();
+                if (!initialized) return;
+            }
+
+            const resultsDiv = document.getElementById('performance-results');
+            resultsDiv.innerHTML = '<p>🚀 Running performance tests...</p>';
+            document.getElementById('performance-modal').style.display = 'block';
+
+            try {
+                const testSuite = createPerformanceTestSuite(WasmTable, measureTime);
+                let results = '<h3>Performance Test Results:</h3>';
+
+                for (const test of testSuite.tests) {
+                    results += `<h4>🔄 Running: ${test.name}</h4>`;
+                    resultsDiv.innerHTML = results + '<p>⏳ In progress...</p>';
+
+                    try {
+                        const startTime = performance.now();
+                        const result = await test.testFn();
+                        const totalTime = performance.now() - startTime;
+
+                        results += `
+                            <div style="background: #d4edda; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #28a745;">
+                                <h4>✅ ${test.name}</h4>
+                                <p><strong>Description:</strong> ${result.description}</p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+                                    <div><strong>Creation Time:</strong> ${result.creationTime?.toFixed(2) || 'N/A'}ms</div>
+                                    <div><strong>Render Time:</strong> ${result.renderTime?.toFixed(2) || 'N/A'}ms</div>
+                                    <div><strong>Total Time:</strong> ${totalTime.toFixed(2)}ms</div>
+                                    <div><strong>Table Height:</strong> ${result.height || 'N/A'} lines</div>
+                                    <div><strong>Character Count:</strong> ${result.charCount || 'N/A'}</div>
+                                    <div><strong>Max Line Length:</strong> ${result.maxLineLength || 'N/A'}</div>
+                                </div>
+                                ${result.performance ? `
+                                    <div style="background: #e9ecef; padding: 10px; border-radius: 3px; margin-top: 10px;">
+                                        <strong>Performance Metrics:</strong><br>
+                                        ${Object.entries(result.performance).map(([key, value]) => 
+                                            `${key}: ${value}`
+                                        ).join('<br>')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    } catch (error) {
+                        results += `
+                            <div style="background: #f8d7da; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #dc3545;">
+                                <h4>❌ ${test.name}</h4>
+                                <p><strong>Error:</strong> ${error.message}</p>
+                            </div>
+                        `;
+                    }
+
+                    resultsDiv.innerHTML = results;
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                results += '<p style="text-align: center; color: #28a745; font-weight: bold;">🎉 All performance tests completed!</p>';
+                resultsDiv.innerHTML = results;
+
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div style="background: #f8d7da; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545;">
+                        <h4>❌ Performance Test Suite Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        };
+
+        window.closePerformanceModal = function() {
+            document.getElementById('performance-modal').style.display = 'none';
+        };
+
+        initializeWasm();
+    </script>
+</body>
+</html>
