@@ -118,12 +118,43 @@ pub fn convert_ansi_to_html(text: &str) -> String {
     let re_cleanup = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     result = re_cleanup.replace_all(&result, "").to_string();
 
+    // Wrap emojis in spans with fixed width to match Rust's 2-character calculation
+    result = wrap_emojis_with_fixed_width(&result);
+
     result = format!(
         "<pre style=\"margin: 0; font-family: monospace; white-space: pre;\">{}</pre>",
         result
     );
 
     result
+}
+
+fn wrap_emojis_with_fixed_width(text: &str) -> String {
+    // Regex to match only TRUE 2-width emojis (not 1-width symbols like ✓✗⚠)
+    // These ranges contain characters that unicode-width crate calculates as 2-width
+    let emoji_regex = Regex::new(concat!(
+        r"[\u{1F600}-\u{1F64F}]", // Emoticons (😀-🙏)
+        r"|[\u{1F300}-\u{1F5FF}]", // Misc Symbols and Pictographs (🌀-🗿)
+        r"|[\u{1F680}-\u{1F6FF}]", // Transport and Map (🚀-🛿)
+        r"|[\u{1F700}-\u{1F77F}]", // Alchemical symbols
+        r"|[\u{1F780}-\u{1F7FF}]", // Geometric Shapes Extended
+        r"|[\u{1F800}-\u{1F8FF}]", // Supplemental Arrows-C
+        r"|[\u{1F900}-\u{1F9FF}]", // Supplemental Symbols and Pictographs (🤀-🧿)
+        r"|[\u{1FA00}-\u{1FA6F}]", // Chess Symbols
+        r"|[\u{1FA70}-\u{1FAFF}]", // Symbols and Pictographs Extended-A
+        r"|[\u{2B50}-\u{2B55}]",   // Some star symbols (⭐-⭕)
+        r"|[\u{1F1E0}-\u{1F1FF}]", // Regional indicators (flags 🇦-🇿)
+        r"|[\u{2705}-\u{270B}]",   // Specific 2-width dingbats (✅✊✋ etc)
+    )).unwrap();
+    
+    emoji_regex.replace_all(text, |caps: &regex::Captures| {
+        let emoji = &caps[0];
+        // Wrap ONLY 2-width emojis in span with fixed width of 2ch
+        format!(
+            r#"<span style="display: inline-block; width: 2ch; text-align: center;">{}</span>"#,
+            emoji
+        )
+    }).to_string()
 }
 
 fn ansi_256_to_rgb(color_num: u8) -> String {
@@ -224,5 +255,30 @@ mod tests {
 
         assert!(result.starts_with("<pre"));
         assert!(result.ends_with("</pre>"));
+    }
+
+    #[test]
+    fn test_emoji_fixed_width() {
+        // Test with mix of 1-width symbols and 2-width emojis
+        let input = "Status: ✅ Success ✓ Done 🚀 Launch ⚠ Warning";
+        let result = convert_ansi_to_html(input);
+        
+        // Should wrap 2-width emojis in fixed-width spans
+        assert!(result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">✅</span>"#));
+        assert!(result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">🚀</span>"#));
+        
+        // Should NOT wrap 1-width symbols
+        assert!(!result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">✓</span>"#));
+        assert!(!result.contains(r#"<span style="display: inline-block; width: 2ch; text-align: center;">⚠</span>"#));
+        
+        // Should still contain the unwrapped 1-width symbols
+        assert!(result.contains("✓"));
+        assert!(result.contains("⚠"));
+        
+        // Basic text should be preserved
+        assert!(result.contains("Status:"));
+        assert!(result.contains("Success"));
+        assert!(result.contains("Launch"));
+        assert!(result.contains("Warning"));
     }
 }
