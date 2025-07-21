@@ -25,18 +25,21 @@ pub fn convert_ansi_to_html(text: &str) -> String {
         (47, "#ffffff"),
     ];
 
+    // Process basic foreground colors
     for (code, color) in fg_colors {
         let pattern = format!("\x1b[{}m", code);
         let replacement = format!(r#"<span style="color: {};">"#, color);
         result = result.replace(&pattern, &replacement);
     }
 
+    // Process basic background colors
     for (code, color) in bg_colors {
         let pattern = format!("\x1b[{}m", code);
         let replacement = format!(r#"<span style="background-color: {};">"#, color);
         result = result.replace(&pattern, &replacement);
     }
 
+    // Process formatting codes
     result = result.replace("\x1b[1m", r#"<span style="font-weight: bold;">"#);
     result = result.replace("\x1b[4m", r#"<span style="text-decoration: underline;">"#);
     result = result.replace("\x1b[3m", r#"<span style="font-style: italic;">"#);
@@ -47,10 +50,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
     result = result.replace("\x1b[2m", r#"<span style="opacity: 0.6;">"#);
     result = result.replace("\x1b[7m", r#"<span style="filter: invert(1);">"#);
 
-    result = result.replace("\x1b[0m", "</span>");
-    result = result.replace("\x1b[39m", "</span>");
-    result = result.replace("\x1b[49m", "</span>");
-
+    // Process RGB and 256-color codes
     let re_256_fg = Regex::new(r"\x1b\[38;5;(\d+)m").unwrap();
     result = re_256_fg
         .replace_all(&result, |caps: &regex::Captures| {
@@ -91,6 +91,29 @@ pub fn convert_ansi_to_html(text: &str) -> String {
             )
         })
         .to_string();
+
+    // Handle ANSI reset - close ALL open spans
+    while result.contains("\x1b[0m") {
+        let reset_pos = result.find("\x1b[0m").unwrap();
+        let mut replacement = String::new();
+        
+        // Count how many spans are currently open at this position
+        let before_reset = &result[..reset_pos];
+        let span_opens = before_reset.matches("<span").count();
+        let span_closes = before_reset.matches("</span>").count();
+        let spans_to_close = span_opens.saturating_sub(span_closes);
+        
+        // Close all open spans
+        for _ in 0..spans_to_close {
+            replacement.push_str("</span>");
+        }
+        
+        result = result.replacen("\x1b[0m", &replacement, 1);
+    }
+
+    // Handle specific color resets (close only one span each)
+    result = result.replace("\x1b[39m", "</span>");
+    result = result.replace("\x1b[49m", "</span>");
 
     let re_cleanup = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
     result = re_cleanup.replace_all(&result, "").to_string();
