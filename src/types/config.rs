@@ -1,5 +1,5 @@
+use super::{Alignment, BorderConfig, BorderUserConfig, VerticalAlignment};
 use serde::{Deserialize, Serialize};
-use super::{Alignment, VerticalAlignment, BorderConfig, BorderUserConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellConfig {
@@ -38,7 +38,9 @@ impl CellUserConfig {
     pub fn merge_with_default(self, default: &CellConfig) -> CellConfig {
         CellConfig {
             alignment: self.alignment.unwrap_or(default.alignment),
-            vertical_alignment: self.vertical_alignment.unwrap_or(default.vertical_alignment),
+            vertical_alignment: self
+                .vertical_alignment
+                .unwrap_or(default.vertical_alignment),
             padding_left: self.padding_left.unwrap_or(default.padding_left),
             padding_right: self.padding_right.unwrap_or(default.padding_right),
             truncate: self.truncate.unwrap_or(default.truncate),
@@ -87,7 +89,9 @@ impl ColumnUserConfig {
     pub fn merge_with_default(self, default: &ColumnConfig) -> ColumnConfig {
         ColumnConfig {
             alignment: self.alignment.unwrap_or(default.alignment),
-            vertical_alignment: self.vertical_alignment.unwrap_or(default.vertical_alignment),
+            vertical_alignment: self
+                .vertical_alignment
+                .unwrap_or(default.vertical_alignment),
             padding_left: self.padding_left.unwrap_or(default.padding_left),
             padding_right: self.padding_right.unwrap_or(default.padding_right),
             truncate: self.truncate.unwrap_or(default.truncate),
@@ -168,7 +172,7 @@ impl Default for TableConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TableUserConfig {
     pub border: Option<BorderUserConfig>,
     pub columns: Option<Vec<ColumnUserConfig>>,
@@ -178,36 +182,31 @@ pub struct TableUserConfig {
     pub header: Option<Box<TableUserConfig>>,
 }
 
-impl Default for TableUserConfig {
-    fn default() -> Self {
-        Self {
-            border: None,
-            columns: None,
-            column_default: None,
-            single_line: None,
-            spanning_cells: None,
-            header: None,
-        }
-    }
-}
-
 impl TableUserConfig {
     pub fn merge_with_default(self, default: &TableConfig) -> TableConfig {
-        let border = self.border
+        let border = self
+            .border
             .map(|b| b.merge_with_default(&default.border))
             .unwrap_or_else(|| default.border.clone());
-        
-        let column_default = self.column_default
+
+        let column_default = self
+            .column_default
             .map(|c| c.merge_with_default(&default.column_default))
             .unwrap_or_else(|| default.column_default.clone());
-        
-        let columns = self.columns
-            .map(|cols| cols.into_iter().map(|c| c.merge_with_default(&column_default)).collect())
+
+        let columns = self
+            .columns
+            .map(|cols| {
+                cols.into_iter()
+                    .map(|c| c.merge_with_default(&column_default))
+                    .collect()
+            })
             .unwrap_or_else(|| default.columns.clone());
-        
-        let header = self.header
+
+        let header = self
+            .header
             .map(|h| Box::new(h.merge_with_default(&TableConfig::default())));
-        
+
         TableConfig {
             border,
             columns,
@@ -215,7 +214,9 @@ impl TableUserConfig {
             draw_vertical_line: default.draw_vertical_line,
             draw_horizontal_line: default.draw_horizontal_line,
             single_line: self.single_line.unwrap_or(default.single_line),
-            spanning_cells: self.spanning_cells.unwrap_or_else(|| default.spanning_cells.clone()),
+            spanning_cells: self
+                .spanning_cells
+                .unwrap_or_else(|| default.spanning_cells.clone()),
             header,
         }
     }

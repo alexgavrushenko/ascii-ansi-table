@@ -4,9 +4,7 @@ use std::sync::OnceLock;
 static ANSI_REGEX: OnceLock<Regex> = OnceLock::new();
 
 fn get_ansi_regex() -> &'static Regex {
-    ANSI_REGEX.get_or_init(|| {
-        Regex::new(r"\x1b\[[0-9;]*m").unwrap()
-    })
+    ANSI_REGEX.get_or_init(|| Regex::new(r"\x1b\[[0-9;]*m").unwrap())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,7 +16,10 @@ pub struct AnsiString {
 impl AnsiString {
     pub fn new(content: String) -> Self {
         let display_width = calculate_display_width(&content);
-        Self { content, display_width }
+        Self {
+            content,
+            display_width,
+        }
     }
 
     pub fn slice(&self, start: usize, end: usize) -> AnsiString {
@@ -67,7 +68,7 @@ pub fn split_ansi_string(text: &str) -> Vec<String> {
                 result.push(current.clone());
                 current.clear();
             }
-            
+
             let ansi_start = i;
             i = skip_ansi_sequence(&chars, i);
             let ansi_seq: String = chars[ansi_start..i].iter().collect();
@@ -89,12 +90,12 @@ pub fn skip_ansi_sequence(chars: &[char], mut pos: usize) -> usize {
     if pos >= chars.len() || chars[pos] != '\u{1b}' {
         return pos;
     }
-    
+
     pos += 1;
     if pos >= chars.len() {
         return pos;
     }
-    
+
     if chars[pos] == '[' {
         pos += 1;
         while pos < chars.len() && chars[pos] >= '\u{30}' && chars[pos] <= '\u{3F}' {
@@ -109,7 +110,7 @@ pub fn skip_ansi_sequence(chars: &[char], mut pos: usize) -> usize {
     } else {
         pos += 1;
     }
-    
+
     pos
 }
 
@@ -147,7 +148,7 @@ pub fn slice_ansi_string(text: &str, start: usize, end: usize) -> AnsiString {
 
 pub fn pad_ansi_string(text: &str, width: usize, alignment: crate::types::Alignment) -> AnsiString {
     let display_width = calculate_display_width(text);
-    
+
     if display_width >= width {
         return AnsiString::new(text.to_string());
     }
@@ -159,11 +160,14 @@ pub fn pad_ansi_string(text: &str, width: usize, alignment: crate::types::Alignm
         crate::types::Alignment::Center => {
             let left_padding = padding / 2;
             let right_padding = padding - left_padding;
-            format!("{}{}{}", " ".repeat(left_padding), text, " ".repeat(right_padding))
+            format!(
+                "{}{}{}",
+                " ".repeat(left_padding),
+                text,
+                " ".repeat(right_padding)
+            )
         }
-        crate::types::Alignment::Justify => {
-            justify_text(text, width)
-        }
+        crate::types::Alignment::Justify => justify_text(text, width),
     };
 
     AnsiString::new(result)
@@ -171,7 +175,7 @@ pub fn pad_ansi_string(text: &str, width: usize, alignment: crate::types::Alignm
 
 pub fn truncate_ansi_string(text: &str, max_width: usize) -> AnsiString {
     let display_width = calculate_display_width(text);
-    
+
     if display_width <= max_width {
         return AnsiString::new(text.to_string());
     }
@@ -187,7 +191,7 @@ pub fn truncate_ansi_string(text: &str, max_width: usize) -> AnsiString {
 fn justify_text(text: &str, width: usize) -> String {
     let clean_text = strip_ansi_sequences(text);
     let words: Vec<&str> = clean_text.split_whitespace().collect();
-    
+
     if words.len() <= 1 {
         return text.to_string();
     }
@@ -195,7 +199,7 @@ fn justify_text(text: &str, width: usize) -> String {
     let total_chars: usize = words.iter().map(|w| w.len()).sum();
     let total_spaces = width - total_chars;
     let gaps = words.len() - 1;
-    
+
     if gaps == 0 {
         return text.to_string();
     }
@@ -244,7 +248,10 @@ mod tests {
     fn test_strip_ansi_sequences() {
         assert_eq!(strip_ansi_sequences("hello"), "hello");
         assert_eq!(strip_ansi_sequences("\u{1b}[31mhello\u{1b}[39m"), "hello");
-        assert_eq!(strip_ansi_sequences("\u{1b}[31m\u{1b}[1mhello\u{1b}[22m\u{1b}[39m"), "hello");
+        assert_eq!(
+            strip_ansi_sequences("\u{1b}[31m\u{1b}[1mhello\u{1b}[22m\u{1b}[39m"),
+            "hello"
+        );
     }
 
     #[test]
