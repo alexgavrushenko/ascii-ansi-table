@@ -5,91 +5,153 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ASCII ANSI Table WASM - Comprehensive Test Suite</title>
     <style>
+        :root {
+            --dracula-bg: #282a36;
+            --dracula-current-line: #44475a;
+            --dracula-selection: #44475a;
+            --dracula-foreground: #f8f8f2;
+            --dracula-comment: #6272a4;
+            --dracula-cyan: #8be9fd;
+            --dracula-green: #50fa7b;
+            --dracula-orange: #ffb86c;
+            --dracula-pink: #ff79c6;
+            --dracula-purple: #bd93f9;
+            --dracula-red: #ff5555;
+            --dracula-yellow: #f1fa8c;
+        }
+        
         body {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             line-height: 1.6;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background: var(--dracula-bg);
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(189, 147, 249, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255, 121, 198, 0.1) 0%, transparent 50%);
+            color: var(--dracula-foreground);
+            min-height: 100vh;
         }
         
         .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            background: rgba(68, 71, 90, 0.6);
+            backdrop-filter: blur(12px);
+            padding: 35px;
+            border-radius: 20px;
+            border: 1px solid rgba(189, 147, 249, 0.2);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                0 4px 16px rgba(189, 147, 249, 0.1),
+                inset 0 1px 0 rgba(248, 248, 242, 0.1),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            margin-bottom: 25px;
         }
         
         h1 {
-            color: #333;
+            color: var(--dracula-purple);
             text-align: center;
-            border-bottom: 2px solid #007acc;
-            padding-bottom: 10px;
+            text-shadow: 0 2px 8px rgba(189, 147, 249, 0.3), 0 0 20px rgba(189, 147, 249, 0.2);
+            border-bottom: 2px solid var(--dracula-purple);
+            padding-bottom: 15px;
+            font-size: 2.2em;
+            letter-spacing: -0.02em;
         }
         
         .test-result {
-            margin: 15px 0;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #007acc;
+            margin: 18px 0;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
         }
         
         .test-result.pass {
-            background: #d4edda;
-            border-left-color: #28a745;
+            background: linear-gradient(145deg, rgba(80, 250, 123, 0.15), rgba(80, 250, 123, 0.05));
+            border-color: rgba(80, 250, 123, 0.4);
+            box-shadow: 0 4px 16px rgba(80, 250, 123, 0.1), inset 0 1px 0 rgba(248, 248, 242, 0.05);
         }
         
         .test-result.fail {
-            background: #f8d7da;
-            border-left-color: #dc3545;
+            background: linear-gradient(145deg, rgba(255, 85, 85, 0.15), rgba(255, 85, 85, 0.05));
+            border-color: rgba(255, 85, 85, 0.4);
+            box-shadow: 0 4px 16px rgba(255, 85, 85, 0.1), inset 0 1px 0 rgba(248, 248, 242, 0.05);
         }
         
         .test-result.running {
-            background: #fff3cd;
-            border-left-color: #ffc107;
+            background: linear-gradient(145deg, rgba(241, 250, 140, 0.15), rgba(241, 250, 140, 0.05));
+            border-color: rgba(241, 250, 140, 0.4);
+            box-shadow: 0 4px 16px rgba(241, 250, 140, 0.1), inset 0 1px 0 rgba(248, 248, 242, 0.05);
         }
         
         .test-output {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 10px 0;
+            background: rgba(40, 42, 54, 0.9);
+            color: var(--dracula-foreground);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             white-space: pre-wrap;
             overflow-x: auto;
-            max-height: 300px;
+            max-height: 350px;
             overflow-y: auto;
+            border: 1px solid rgba(139, 233, 253, 0.2);
+            box-shadow: 
+                0 4px 16px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(248, 248, 242, 0.05);
         }
         
         .controls {
-            margin: 20px 0;
+            margin: 25px 0;
             text-align: center;
         }
         
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
+            background: linear-gradient(145deg, var(--dracula-purple), var(--dracula-pink));
+            color: var(--dracula-bg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 14px 28px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: bold;
-            margin: 5px;
+            margin: 8px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            box-shadow: 
+                0 4px 16px rgba(189, 147, 249, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.2);
         }
         
-        button:hover {
-            transform: translateY(-2px);
+        button:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 
+                0 8px 24px rgba(189, 147, 249, 0.4),
+                0 4px 12px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+            background: linear-gradient(145deg, var(--dracula-pink), var(--dracula-purple));
+        }
+        
+        button:active:not(:disabled) {
+            transform: translateY(-1px) scale(1.01);
+            box-shadow: 
+                0 4px 12px rgba(189, 147, 249, 0.3),
+                0 2px 6px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(0, 0, 0, 0.1),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.1);
         }
         
         button:disabled {
-            background: #6c757d;
+            background: linear-gradient(145deg, var(--dracula-comment), #5a6374);
+            color: var(--dracula-selection);
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
+            border-color: rgba(98, 114, 164, 0.3);
         }
         
         .status-bar {
@@ -97,7 +159,7 @@
             top: 0;
             left: 0;
             right: 0;
-            background: #007acc;
+            background: var(--dracula-current-line);
             color: white;
             padding: 10px;
             text-align: center;
@@ -106,31 +168,65 @@
         }
         
         .summary {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background: linear-gradient(145deg, rgba(68, 71, 90, 0.8), rgba(68, 71, 90, 0.4));
+            border: 1px solid rgba(139, 233, 253, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 25px 0;
+            box-shadow: 
+                0 4px 16px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(248, 248, 242, 0.05);
         }
         
         .benchmark-info {
             font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
+            color: var(--dracula-comment);
+            margin-top: 8px;
         }
         
         .ansi-preview {
-            background: #1e1e1e;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
+            background: rgba(40, 42, 54, 0.95);
+            border: 1px solid rgba(139, 233, 253, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 8px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         
         .html-preview {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
+            background: rgba(248, 248, 242, 0.95);
+            color: var(--dracula-bg);
+            border: 1px solid rgba(189, 147, 249, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 8px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .back-link {
+            display: inline-block;
+            background: linear-gradient(145deg, var(--dracula-comment), #5a6374);
+            color: var(--dracula-foreground);
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 10px;
+            margin: 12px 0;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 4px 16px rgba(98, 114, 164, 0.2),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .back-link:hover {
+            background: linear-gradient(145deg, #5a6374, var(--dracula-comment));
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 20px rgba(98, 114, 164, 0.3),
+                0 4px 12px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
     </style>
 </head>
@@ -140,6 +236,10 @@
     </div>
     
     <div style="margin-top: 60px;">
+        <div style="text-align: left; margin: 0 0 30px 0;">
+            <a href="index.html" class="back-link">&larr; Back to Test Directory</a>
+        </div>
+        
         <h1>🧪 ASCII ANSI Table WASM - Comprehensive Test Suite</h1>
         
         <div class="container">
@@ -197,7 +297,7 @@
             try {
                 wasmModule = await init();
                 document.getElementById('status-bar').textContent = 'WASM module loaded successfully!';
-                document.getElementById('status-bar').style.background = '#28a745';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-green), #45e066)';
                 
                 // Enable buttons
                 document.getElementById('run-all-btn').disabled = false;
@@ -208,7 +308,7 @@
                 return true;
             } catch (error) {
                 document.getElementById('status-bar').textContent = 'Failed to load WASM module: ' + error.message;
-                document.getElementById('status-bar').style.background = '#dc3545';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-red), #e04545)';
                 console.error('WASM initialization failed:', error);
                 return false;
             }
@@ -262,7 +362,7 @@
                     content += `
                         <details style="margin-top: 10px;">
                             <summary style="cursor: pointer; font-weight: bold;">📋 Raw Table Sample (first 20 lines)</summary>
-                            <pre style="background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 300px; overflow-y: auto; margin-top: 10px;">${sampleOutput}</pre>
+                            <pre style="background: rgba(40, 42, 54, 0.9); color: var(--dracula-foreground); padding: 15px; border-radius: 8px; overflow-x: auto; max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid rgba(139, 233, 253, 0.2); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);">${sampleOutput}</pre>
                         </details>
                     `;
                 }
@@ -287,7 +387,9 @@
             
             summaryText.textContent = `${passed}/${total} tests passed (${failed} failed)`;
             summary.style.display = 'block';
-            summary.style.background = failed === 0 ? '#d4edda' : '#f8d7da';
+            summary.style.background = failed === 0 ? 'linear-gradient(145deg, rgba(80, 250, 123, 0.2), rgba(80, 250, 123, 0.1))' : 'linear-gradient(145deg, rgba(255, 85, 85, 0.2), rgba(255, 85, 85, 0.1))';
+            summary.style.border = failed === 0 ? '1px solid rgba(80, 250, 123, 0.3)' : '1px solid rgba(255, 85, 85, 0.3)';
+            summary.style.color = 'var(--dracula-foreground)';
         }
         
         window.runFunctionalTests = async function() {
@@ -298,7 +400,7 @@
             
             document.getElementById('run-functional-btn').disabled = true;
             document.getElementById('status-bar').textContent = 'Running functional tests...';
-            document.getElementById('status-bar').style.background = '#ffc107';
+            document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-yellow), #f4e479)';
             
             try {
                 const testSuite = createFunctionalTestSuite(WasmTable, convertAnsiToHtml, stripAnsi);
@@ -344,11 +446,11 @@
                 }
                 
                 document.getElementById('status-bar').textContent = 'Functional tests completed!';
-                document.getElementById('status-bar').style.background = '#28a745';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-green), #45e066)';
                 
             } catch (error) {
                 document.getElementById('status-bar').textContent = 'Test execution failed: ' + error.message;
-                document.getElementById('status-bar').style.background = '#dc3545';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-red), #e04545)';
                 console.error('Test execution failed:', error);
             }
             
@@ -363,7 +465,7 @@
             
             document.getElementById('run-perf-btn').disabled = true;
             document.getElementById('status-bar').textContent = 'Running performance tests...';
-            document.getElementById('status-bar').style.background = '#ffc107';
+            document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-yellow), #f4e479)';
             
             try {
                 const testSuite = createPerformanceTestSuite(WasmTable, measureTime);
@@ -411,11 +513,11 @@
                 }
                 
                 document.getElementById('status-bar').textContent = 'Performance tests completed!';
-                document.getElementById('status-bar').style.background = '#28a745';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-green), #45e066)';
                 
             } catch (error) {
                 document.getElementById('status-bar').textContent = 'Performance test execution failed: ' + error.message;
-                document.getElementById('status-bar').style.background = '#dc3545';
+                document.getElementById('status-bar').style.background = 'linear-gradient(145deg, var(--dracula-red), #e04545)';
                 console.error('Performance test execution failed:', error);
             }
             
