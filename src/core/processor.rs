@@ -141,7 +141,7 @@ fn align_cell_with_width(cell: &str, config: &ColumnConfig, total_width: usize) 
 fn pad_cell(cell: &str, config: &ColumnConfig) -> String {
     let left_padding = " ".repeat(config.padding_left);
     let right_padding = " ".repeat(config.padding_right);
-    format!("{}{}{}", left_padding, cell, right_padding)
+    format!("{left_padding}{cell}{right_padding}")
 }
 
 fn pad_cell_with_width(cell: &str, config: &ColumnConfig, total_width: usize) -> String {

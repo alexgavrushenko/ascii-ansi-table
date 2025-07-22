@@ -134,7 +134,7 @@ fn generate_table(
 ) -> TableResult<()> {
     let input_data = read_input_data(input)?;
     let table_data: Vec<Row> = serde_json::from_str(&input_data)
-        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON input: {}", e)))?;
+        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON input: {e}")))?;
 
     let mut config = if let Some(config_path) = config_path {
         read_config_file(config_path)?
@@ -214,7 +214,7 @@ fn list_borders() -> TableResult<()> {
 
     println!("Available border styles:");
     for border in &borders {
-        println!("  {}", border);
+        println!("  {border}");
 
         let border_config = crate::get_border_characters(border)?;
         let example_data = vec![
@@ -249,7 +249,7 @@ fn list_borders() -> TableResult<()> {
         };
 
         let example_table = table(&example_data, Some(&config))?;
-        println!("{}", example_table);
+        println!("{example_table}");
         println!();
     }
 
@@ -260,11 +260,11 @@ fn list_borders() -> TableResult<()> {
 fn read_input_data(input: Option<String>) -> TableResult<String> {
     match input {
         Some(path) => fs::read_to_string(path)
-            .map_err(|e| TableError::InvalidConfig(format!("Failed to read input file: {}", e))),
+            .map_err(|e| TableError::InvalidConfig(format!("Failed to read input file: {e}"))),
         None => {
             let mut buffer = String::new();
             io::stdin().read_to_string(&mut buffer).map_err(|e| {
-                TableError::InvalidConfig(format!("Failed to read from stdin: {}", e))
+                TableError::InvalidConfig(format!("Failed to read from stdin: {e}"))
             })?;
             Ok(buffer)
         }
@@ -274,20 +274,20 @@ fn read_input_data(input: Option<String>) -> TableResult<String> {
 #[cfg(feature = "cli")]
 fn read_config_file(path: String) -> TableResult<TableUserConfig> {
     let content = fs::read_to_string(path)
-        .map_err(|e| TableError::InvalidConfig(format!("Failed to read config file: {}", e)))?;
+        .map_err(|e| TableError::InvalidConfig(format!("Failed to read config file: {e}")))?;
 
     serde_json::from_str(&content)
-        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON in config file: {}", e)))
+        .map_err(|e| TableError::InvalidConfig(format!("Invalid JSON in config file: {e}")))
 }
 
 #[cfg(feature = "cli")]
 fn write_output(output: Option<String>, content: &str) -> TableResult<()> {
     match output {
         Some(path) => fs::write(path, content)
-            .map_err(|e| TableError::InvalidConfig(format!("Failed to write output file: {}", e))),
+            .map_err(|e| TableError::InvalidConfig(format!("Failed to write output file: {e}"))),
         None => {
             io::stdout().write_all(content.as_bytes()).map_err(|e| {
-                TableError::InvalidConfig(format!("Failed to write to stdout: {}", e))
+                TableError::InvalidConfig(format!("Failed to write to stdout: {e}"))
             })?;
             Ok(())
         }
@@ -314,11 +314,8 @@ fn stream_demo(
     use crate::types::{BorderUserConfig, ColumnUserConfig, StreamUserConfig};
 
     println!("🚀 ASCII ANSI Table Streaming Demo");
-    println!(
-        "📊 Streaming {} rows with {}ms delay (1 row per second)",
-        rows, delay
-    );
-    println!("🎨 Border style: {}", border);
+    println!("📊 Streaming {rows} rows with {delay}ms delay (1 row per second)");
+    println!("🎨 Border style: {border}");
     if colors {
         println!("🌈 ANSI colors: enabled");
     }
@@ -398,11 +395,11 @@ fn stream_demo(
                 format!("\u{1b}[34m{}\u{1b}[0m", product),
                 format!("\u{1b}[32m{}\u{1b}[0m", price),
                 match status {
-                    "Active" => format!("\u{1b}[32m✓ {}\u{1b}[0m", status),
-                    "Sold" => format!("\u{1b}[31m✗ {}\u{1b}[0m", status),
-                    "Pending" => format!("\u{1b}[33m⚠ {}\u{1b}[0m", status),
-                    "Shipped" => format!("\u{1b}[36m🚚 {}\u{1b}[0m", status),
-                    "Delivered" => format!("\u{1b}[35m📦 {}\u{1b}[0m", status),
+                    "Active" => format!("\u{1b}[32m✓ {status}\u{1b}[0m"),
+                    "Sold" => format!("\u{1b}[31m✗ {status}\u{1b}[0m"),
+                    "Pending" => format!("\u{1b}[33m⚠ {status}\u{1b}[0m"),
+                    "Shipped" => format!("\u{1b}[36m🚚 {status}\u{1b}[0m"),
+                    "Delivered" => format!("\u{1b}[35m📦 {status}\u{1b}[0m"),
                     _ => status.to_string(),
                 },
             ]
@@ -471,10 +468,10 @@ fn stream_demo(
     let mut stream = create_string_stream(Some(stream_config));
 
     let header_output = stream.write_row(&all_sample_data[0])?;
-    print!("{}", header_output);
+    print!("{header_output}");
     io::stdout()
         .flush()
-        .map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {}", e)))?;
+        .map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {e}")))?;
 
     let mut previous_output_lines = 0;
 
@@ -490,23 +487,23 @@ fn stream_demo(
         }
 
         let row_output = stream.write_row(&all_sample_data[i + 1])?;
-        print!("{}", row_output);
+        print!("{row_output}");
 
-        use crate::core::renderer::{draw_border_line, BorderType};
+        use crate::core::renderer::{BorderType, draw_border_line};
 
         let border_config = crate::get_border_characters(&border)?;
         let bottom_border = draw_border_line(&column_widths, &border_config, BorderType::Bottom);
-        println!("{}", bottom_border);
+        println!("{bottom_border}");
 
         // Count lines in this iteration's output for next iteration
         previous_output_lines = 1; // +1 for bottom border
 
         io::stdout()
             .flush()
-            .map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {}", e)))?;
+            .map_err(|e| TableError::InvalidConfig(format!("Failed to flush stdout: {e}")))?;
     }
 
-    println!("\n✅ Streaming demo complete! {} rows processed.", rows);
+    println!("\n✅ Streaming demo complete! {rows} rows processed.");
     println!("💡 Try different options:");
     println!("   --rows 20 --delay 200 --colors --border ramac");
     println!("   --widths 4,12,8,12");
@@ -524,8 +521,8 @@ fn table_demo(
     use crate::types::{ColumnUserConfig, TableUserConfig};
 
     println!("🚀 ASCII ANSI Table Demo");
-    println!("📊 Generating table with {} rows", rows);
-    println!("🎨 Border style: {}", border);
+    println!("📊 Generating table with {rows} rows");
+    println!("🎨 Border style: {border}");
     if colors {
         println!("🌈 ANSI colors: enabled");
     }
@@ -581,11 +578,11 @@ fn table_demo(
                 format!("\u{1b}[34m{}\u{1b}[0m", product),
                 format!("\u{1b}[32m{}\u{1b}[0m", price),
                 match status {
-                    "Active" => format!("\u{1b}[32m✓ {}\u{1b}[0m", status),
-                    "Sold" => format!("\u{1b}[31m✗ {}\u{1b}[0m", status),
-                    "Pending" => format!("\u{1b}[33m⚠ {}\u{1b}[0m", status),
-                    "Shipped" => format!("\u{1b}[36m🚚 {}\u{1b}[0m", status),
-                    "Delivered" => format!("\u{1b}[35m📦 {}\u{1b}[0m", status),
+                    "Active" => format!("\u{1b}[32m✓ {status}\u{1b}[0m"),
+                    "Sold" => format!("\u{1b}[31m✗ {status}\u{1b}[0m"),
+                    "Pending" => format!("\u{1b}[33m⚠ {status}\u{1b}[0m"),
+                    "Shipped" => format!("\u{1b}[36m🚚 {status}\u{1b}[0m"),
+                    "Delivered" => format!("\u{1b}[35m📦 {status}\u{1b}[0m"),
                     _ => status.to_string(),
                 },
             ]
@@ -659,9 +656,9 @@ fn table_demo(
     }
 
     let result = crate::table(&all_sample_data, Some(&config))?;
-    println!("{}", result);
+    println!("{result}");
 
-    println!("✅ Table demo complete! {} rows generated.", rows);
+    println!("✅ Table demo complete! {rows} rows generated.");
     println!("💡 Try different options:");
     println!("   --rows 20 --colors --border ramac");
     println!("   --widths 4,12,8,12");

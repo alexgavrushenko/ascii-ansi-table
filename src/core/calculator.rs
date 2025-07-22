@@ -125,7 +125,7 @@ mod tests {
         let row_heights = vec![2];
         let mapped = map_data_using_row_heights(&rows, &row_heights, &config);
 
-        println!("Mapped: {:?}", mapped);
+        println!("Mapped: {mapped:?}");
 
         assert_eq!(mapped.len(), 1);
         assert_eq!(mapped[0].len(), 2);
@@ -148,8 +148,8 @@ mod tests {
         let row_heights = calculate_row_heights(&rows, &config);
         let mapped = map_data_using_row_heights(&rows, &row_heights, &config);
 
-        println!("Row heights: {:?}", row_heights);
-        println!("Mapped data: {:#?}", mapped);
+        println!("Row heights: {row_heights:?}");
+        println!("Mapped data: {mapped:#?}");
 
         assert_eq!(row_heights[1], 11, "Second row should have height 11");
 
@@ -157,7 +157,7 @@ mod tests {
         assert_eq!(mapped[1].len(), 11);
 
         for (sub_row_idx, sub_row) in mapped[1].iter().enumerate() {
-            println!("Sub-row {}: {:?}", sub_row_idx, sub_row);
+            println!("Sub-row {sub_row_idx}: {sub_row:?}");
             assert_eq!(sub_row.len(), 2, "Each sub-row should have 2 cells");
 
             if sub_row_idx == 0 {
@@ -184,8 +184,8 @@ mod tests {
         let row_heights = calculate_row_heights(&rows, &config);
         let mapped = map_data_using_row_heights(&rows, &row_heights, &config);
 
-        println!("Realistic test - Row heights: {:?}", row_heights);
-        println!("Realistic test - Mapped data: {:#?}", mapped);
+        println!("Realistic test - Row heights: {row_heights:?}");
+        println!("Realistic test - Mapped data: {mapped:#?}");
 
         assert_eq!(row_heights[1], 11);
 

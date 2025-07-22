@@ -158,8 +158,7 @@ pub fn get_border_characters(name: &str) -> Result<BorderConfig, crate::types::T
             join_join: "".to_string(),
         }),
         _ => Err(crate::types::TableError::InvalidConfig(format!(
-            "Unknown border style: {}",
-            name
+            "Unknown border style: {name}"
         ))),
     }
 }

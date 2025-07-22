@@ -4,7 +4,7 @@ use ascii_ansi_table::cli::run_cli;
 #[cfg(feature = "cli")]
 fn main() {
     if let Err(e) = run_cli() {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         std::process::exit(1);
     }
 }

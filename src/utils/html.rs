@@ -28,15 +28,15 @@ pub fn convert_ansi_to_html(text: &str) -> String {
 
     // Process basic foreground colors
     for (code, color) in fg_colors {
-        let pattern = format!("\x1b[{}m", code);
-        let replacement = format!(r#"<span style="color: {};">"#, color);
+        let pattern = format!("\x1b[{code}m");
+        let replacement = format!(r#"<span style="color: {color};">"#);
         result = result.replace(&pattern, &replacement);
     }
 
     // Process basic background colors
     for (code, color) in bg_colors {
-        let pattern = format!("\x1b[{}m", code);
-        let replacement = format!(r#"<span style="background-color: {};">"#, color);
+        let pattern = format!("\x1b[{code}m");
+        let replacement = format!(r#"<span style="background-color: {color};">"#);
         result = result.replace(&pattern, &replacement);
     }
 
@@ -57,7 +57,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
         .replace_all(&result, |caps: &regex::Captures| {
             let color_num: u8 = caps[1].parse().unwrap_or(15);
             let color = ansi_256_to_rgb(color_num);
-            format!(r#"<span style="color: {};">"#, color)
+            format!(r#"<span style="color: {color};">"#)
         })
         .to_string();
 
@@ -66,7 +66,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
         .replace_all(&result, |caps: &regex::Captures| {
             let color_num: u8 = caps[1].parse().unwrap_or(0);
             let color = ansi_256_to_rgb(color_num);
-            format!(r#"<span style="background-color: {};">"#, color)
+            format!(r#"<span style="background-color: {color};">"#)
         })
         .to_string();
 
@@ -76,7 +76,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
             let r: u8 = caps[1].parse().unwrap_or(255);
             let g: u8 = caps[2].parse().unwrap_or(255);
             let b: u8 = caps[3].parse().unwrap_or(255);
-            format!(r#"<span style="color: rgb({}, {}, {});">"#, r, g, b)
+            format!(r#"<span style="color: rgb({r}, {g}, {b});">"#)
         })
         .to_string();
 
@@ -86,10 +86,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
             let r: u8 = caps[1].parse().unwrap_or(0);
             let g: u8 = caps[2].parse().unwrap_or(0);
             let b: u8 = caps[3].parse().unwrap_or(0);
-            format!(
-                r#"<span style="background-color: rgb({}, {}, {});">"#,
-                r, g, b
-            )
+            format!(r#"<span style="background-color: rgb({r}, {g}, {b});">"#)
         })
         .to_string();
 
@@ -123,8 +120,7 @@ pub fn convert_ansi_to_html(text: &str) -> String {
     result = wrap_emojis_with_fixed_width(&result);
 
     result = format!(
-        "<pre style=\"margin: 0; font-family: monospace; white-space: pre;\">{}</pre>",
-        result
+        "<pre style=\"margin: 0; font-family: monospace; white-space: pre;\">{result}</pre>"
     );
 
     result
@@ -140,8 +136,7 @@ fn wrap_emojis_with_fixed_width(text: &str) -> String {
         if width == 2 {
             // Wrap 2-width characters in fixed-width spans
             result.push_str(&format!(
-                r#"<span style="display: inline-block; width: 2ch; text-align: center;">{}</span>"#,
-                ch
+                r#"<span style="display: inline-block; width: 2ch; text-align: center;">{ch}</span>"#
             ));
         } else {
             // Leave 1-width characters unwrapped
@@ -176,12 +171,12 @@ fn ansi_256_to_rgb(color_num: u8) -> String {
             let r = (n / 36) * 51;
             let g = ((n % 36) / 6) * 51;
             let b = (n % 6) * 51;
-            format!("#{:02x}{:02x}{:02x}", r, g, b)
+            format!("#{r:02x}{g:02x}{b:02x}")
         }
 
         232..=255 => {
             let gray = 8 + (color_num - 232) * 10;
-            format!("#{:02x}{:02x}{:02x}", gray, gray, gray)
+            format!("#{gray:02x}{gray:02x}{gray:02x}")
         }
     }
 }

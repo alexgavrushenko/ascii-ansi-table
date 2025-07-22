@@ -1,4 +1,4 @@
-use textwrap::{wrap, Options, WrapAlgorithm};
+use textwrap::{Options, WrapAlgorithm, wrap};
 
 pub fn wrap_text(text: &str, width: usize, word_wrap: bool) -> Vec<String> {
     if width == 0 {
@@ -45,7 +45,7 @@ fn fix_ansi_wrapping(lines: Vec<String>) -> Vec<String> {
         update_active_sequences(&mut active_sequences, &sequences);
 
         if i < lines.len() - 1 && !active_sequences.is_empty() {
-            processed_line = format!("{}\u{1b}[0m", processed_line);
+            processed_line = format!("{processed_line}\u{1b}[0m");
         }
 
         result.push(processed_line);
@@ -155,7 +155,7 @@ mod tests {
         let text = "\u{1b}[31mThis is a long red text that should be wrapped\u{1b}[0m";
         let result = wrap_text(text, 10, true);
 
-        println!("ANSI wrapping test result: {:?}", result);
+        println!("ANSI wrapping test result: {result:?}");
 
         assert!(result.len() > 1, "Should wrap into multiple lines");
 
@@ -163,9 +163,7 @@ mod tests {
             if i < result.len() - 1 {
                 assert!(
                     line.ends_with("\u{1b}[0m"),
-                    "Line {} should end with reset: '{}'",
-                    i,
-                    line
+                    "Line {i} should end with reset: '{line}'"
                 );
             }
         }
@@ -174,9 +172,7 @@ mod tests {
             if i > 0 {
                 assert!(
                     line.starts_with("\u{1b}[31m"),
-                    "Line {} should start with red color: '{}'",
-                    i,
-                    line
+                    "Line {i} should start with red color: '{line}'"
                 );
             }
         }
@@ -187,7 +183,7 @@ mod tests {
         let text = "\u{1b}[31m\u{1b}[1mBold red text that should be wrapped\u{1b}[0m";
         let result = wrap_text(text, 10, true);
 
-        println!("Multiple ANSI sequences test result: {:?}", result);
+        println!("Multiple ANSI sequences test result: {result:?}");
 
         assert!(result.len() > 1, "Should wrap into multiple lines");
 
@@ -195,9 +191,7 @@ mod tests {
             if i < result.len() - 1 {
                 assert!(
                     line.ends_with("\u{1b}[0m"),
-                    "Line {} should end with reset: '{}'",
-                    i,
-                    line
+                    "Line {i} should end with reset: '{line}'"
                 );
             }
         }
@@ -206,9 +200,7 @@ mod tests {
             if i > 0 {
                 assert!(
                     line.starts_with("\u{1b}[31m\u{1b}[1m"),
-                    "Line {} should start with red+bold: '{}'",
-                    i,
-                    line
+                    "Line {i} should start with red+bold: '{line}'"
                 );
             }
         }
@@ -219,14 +211,14 @@ mod tests {
         let text = "\n".repeat(10);
         let result = wrap_text(&text, 20, true);
 
-        println!("Repeated newlines test result: {:?}", result);
+        println!("Repeated newlines test result: {result:?}");
         println!("Number of lines: {}", result.len());
 
         assert_eq!(result.len(), 11, "Should have 11 lines for 10 newlines");
 
         for (i, line) in result.iter().enumerate() {
-            println!("Line {}: '{}'", i, line);
-            assert_eq!(line, "", "Line {} should be empty", i);
+            println!("Line {i}: '{line}'");
+            assert_eq!(line, "", "Line {i} should be empty");
         }
     }
 }

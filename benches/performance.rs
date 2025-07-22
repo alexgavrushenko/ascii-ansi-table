@@ -1,5 +1,5 @@
-use ascii_ansi_table::{table, BorderUserConfig, ColumnUserConfig, TableUserConfig};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ascii_ansi_table::{BorderUserConfig, ColumnUserConfig, TableUserConfig, table};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn generate_test_data() -> Vec<Vec<String>> {
     let mut data = Vec::new();

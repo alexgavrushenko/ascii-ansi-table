@@ -158,7 +158,7 @@ impl TableStream {
     fn pad_cell_content(&self, content: &str, left_padding: usize, right_padding: usize) -> String {
         let left_pad = " ".repeat(left_padding);
         let right_pad = " ".repeat(right_padding);
-        format!("{}{}{}", left_pad, content, right_pad)
+        format!("{left_pad}{content}{right_pad}")
     }
 
     fn truncate_cell_content(&self, content: &str, max_width: usize) -> String {
@@ -325,7 +325,7 @@ mod tests {
         let result = stream.write_row(&row).unwrap();
         let finalized = stream.finalize();
 
-        let complete_output = format!("{}{}", result, finalized);
+        let complete_output = format!("{result}{finalized}");
         assert!(complete_output.contains("test"));
         assert!(complete_output.contains("data"));
         assert!(complete_output.contains("┌"));

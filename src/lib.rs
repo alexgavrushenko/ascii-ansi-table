@@ -87,10 +87,10 @@ mod tests {
         ];
 
         let column_widths = crate::utils::formatting::calculate_maximum_column_widths(&data);
-        println!("Column widths: {:?}", column_widths);
+        println!("Column widths: {column_widths:?}");
 
         let result = table(&data, None).unwrap();
-        println!("Table output: '{}'", result);
+        println!("Table output: '{result}'");
         println!("Length: {}", result.len());
         assert!(result.contains("a"));
         assert!(result.contains("b"));
@@ -165,7 +165,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("ANSI wrapped table result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(
             result.contains("\u{1b}[31m"),
@@ -188,7 +188,7 @@ mod tests {
             .cloned()
             .collect();
 
-        println!("Content lines: {:?}", content_lines);
+        println!("Content lines: {content_lines:?}");
         assert!(
             !content_lines.is_empty(),
             "Should have content lines with text"
@@ -200,7 +200,7 @@ mod tests {
         let ansi_text = "\u{1b}[31mRed text\u{1b}[0m that should be wrapped";
 
         let wrapped = wrap_text(ansi_text, 10, false);
-        println!("Wrapped ANSI text: {:?}", wrapped);
+        println!("Wrapped ANSI text: {wrapped:?}");
 
         assert!(wrapped.len() > 1, "Should wrap into multiple lines");
 
@@ -208,9 +208,7 @@ mod tests {
             let display_width = crate::utils::ansi::calculate_display_width(line);
             assert!(
                 display_width <= 10,
-                "Line '{}' has display width {} > 10",
-                line,
-                display_width
+                "Line '{line}' has display width {display_width} > 10"
             );
         }
 
@@ -242,7 +240,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("ANSI continuation test result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(
             result.contains("\u{1b}[31m"),
@@ -344,7 +342,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Complex ANSI Lorem Ipsum table:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(!result.is_empty(), "Table should not be empty");
         assert!(result.contains("┌"), "Should contain top-left border");
@@ -420,10 +418,7 @@ mod tests {
                 let separator_count = line.matches("│").count();
                 assert!(
                     separator_count >= 4,
-                    "Line {} should have at least 4 separators, got {}: '{}'",
-                    i,
-                    separator_count,
-                    line
+                    "Line {i} should have at least 4 separators, got {separator_count}: '{line}'"
                 );
             }
         }
@@ -486,7 +481,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Vertical alignment test result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(!result.is_empty(), "Table should not be empty");
         assert!(result.contains("Short"), "Should contain 'Short'");
@@ -511,7 +506,7 @@ mod tests {
 
         println!("Content lines:");
         for (i, line) in content_lines.iter().enumerate() {
-            println!("  {}: {}", i, line);
+            println!("  {i}: {line}");
         }
     }
 
@@ -536,7 +531,7 @@ mod tests {
 
         println!("Bottom padding test result:");
         for (i, row) in result.iter().enumerate() {
-            println!("  Row {}: {:?}", i, row);
+            println!("  Row {i}: {row:?}");
         }
 
         assert_eq!(result.len(), 4, "Should have 4 rows total");
@@ -567,7 +562,7 @@ mod tests {
 
         println!("Middle padding test result:");
         for (i, row) in result.iter().enumerate() {
-            println!("  Row {}: {:?}", i, row);
+            println!("  Row {i}: {row:?}");
         }
 
         assert_eq!(result.len(), 5, "Should have 5 rows total");
@@ -599,12 +594,11 @@ mod tests {
     fn test_textwrap_performance() {
         let long_text = "a".repeat(1000);
         let time_ms = benchmark_wrap_text(&long_text, 3, 100);
-        println!("100 wrap operations took {}ms", time_ms);
+        println!("100 wrap operations took {time_ms}ms");
 
         assert!(
             time_ms < 1000,
-            "Textwrap should be reasonably fast, took {}ms",
-            time_ms
+            "Textwrap should be reasonably fast, took {time_ms}ms"
         );
     }
 
@@ -651,7 +645,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Table with header result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("Name"));
         assert!(result.contains("Age"));
@@ -664,9 +658,9 @@ mod tests {
         println!("Looking for header separator character '═' in output...");
         let lines: Vec<&str> = result.lines().collect();
         for (i, line) in lines.iter().enumerate() {
-            println!("Line {}: {}", i, line);
+            println!("Line {i}: {line}");
             if line.contains("═") {
-                println!("Found header separator at line {}", i);
+                println!("Found header separator at line {i}");
             }
         }
         assert!(
@@ -719,7 +713,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Table with ramac-style header result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("ID"));
         assert!(result.contains("Product"));
@@ -804,7 +798,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Table with header column configuration result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("Short"));
         assert!(result.contains("Very Long Header Name"));
@@ -876,7 +870,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Table with header only (no body rows) result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("Column 1"));
         assert!(result.contains("Column 2"));
@@ -918,7 +912,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Table without header configuration result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("Name"));
         assert!(result.contains("Age"));
@@ -1009,7 +1003,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Simple processor debug result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("A"));
         assert!(result.contains("B"));
@@ -1073,7 +1067,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Column width consistency test result:");
-        println!("{}", result);
+        println!("{result}");
 
         let lines: Vec<&str> = result.lines().collect();
 
@@ -1085,7 +1079,7 @@ mod tests {
 
         println!("Border lines:");
         for (i, line) in border_lines.iter().enumerate() {
-            println!("  {}: {}", i, line);
+            println!("  {i}: {line}");
         }
 
         if border_lines.len() >= 2 {
@@ -1112,7 +1106,7 @@ mod tests {
 
         println!("Content lines:");
         for (i, line) in content_lines.iter().enumerate() {
-            println!("  {}: {}", i, line);
+            println!("  {i}: {line}");
         }
 
         if content_lines.len() >= 2 {
@@ -1197,7 +1191,7 @@ mod tests {
 
         let result = table(&data, Some(&config)).unwrap();
         println!("Processor functions integration test result:");
-        println!("{}", result);
+        println!("{result}");
 
         assert!(result.contains("Left"));
         assert!(result.contains("Center"));
@@ -1273,7 +1267,7 @@ mod tests {
         let header = vec!["ID".to_string(), "Name".to_string(), "Status".to_string()];
         let header_output = stream.write_row(&header).unwrap();
         println!("Header row:");
-        println!("{}", header_output);
+        println!("{header_output}");
 
         let data_rows = [
             vec!["1".to_string(), "Alice".to_string(), "Active".to_string()],
@@ -1288,12 +1282,12 @@ mod tests {
         for (i, row) in data_rows.iter().enumerate() {
             let row_output = stream.write_row(row).unwrap();
             println!("Row {}:", i + 1);
-            println!("{}", row_output);
+            println!("{row_output}");
         }
 
         let footer = stream.finalize();
         println!("Footer:");
-        println!("{}", footer);
+        println!("{footer}");
 
         println!("=== Streaming Complete ===");
     }
@@ -1341,14 +1335,14 @@ mod tests {
             if i == 0 {
                 println!("🎯 Header (centered ID, left-aligned Product, right-aligned Price):");
             } else {
-                println!("📦 Product {}:", i);
+                println!("📦 Product {i}:");
             }
-            println!("{}", output);
+            println!("{output}");
         }
 
         let footer = stream.finalize();
         println!("🏁 Complete table:");
-        println!("{}", footer);
+        println!("{footer}");
 
         println!("✅ Streaming with configuration complete!");
     }
