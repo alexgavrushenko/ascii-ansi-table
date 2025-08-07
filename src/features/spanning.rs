@@ -30,11 +30,12 @@ impl SpanningCellManager {
     }
 
     pub fn in_same_range(&self, cell1: &CellCoordinates, cell2: &CellCoordinates) -> bool {
-        if let Some(range1) = self.get_containing_range(cell1) {
-            if let Some(range2) = self.get_containing_range(cell2) {
-                return range1.top_left == range2.top_left
-                    && range1.bottom_right == range2.bottom_right;
-            }
+        if let (Some(range1), Some(range2)) = (
+            self.get_containing_range(cell1),
+            self.get_containing_range(cell2),
+        ) {
+            return range1.top_left == range2.top_left
+                && range1.bottom_right == range2.bottom_right;
         }
         false
     }
@@ -85,15 +86,15 @@ impl SpanningCellManager {
         cell: &CellCoordinates,
         data: &[Row],
     ) -> Option<String> {
-        if let Some(range) = self.get_containing_range(cell) {
-            if cell.col == range.top_left.col && cell.row == range.top_left.row {
-                if let Some(row) = data.get(range.top_left.row) {
-                    if let Some(cell_content) = row.get(range.top_left.col) {
-                        return Some(cell_content.clone());
-                    }
-                }
-            }
+        if let Some(range) = self.get_containing_range(cell)
+            && cell.col == range.top_left.col
+            && cell.row == range.top_left.row
+            && let Some(row) = data.get(range.top_left.row)
+            && let Some(cell_content) = row.get(range.top_left.col)
+        {
+            return Some(cell_content.clone());
         }
+
         None
     }
 }

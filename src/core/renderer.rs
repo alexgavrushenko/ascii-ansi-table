@@ -90,7 +90,7 @@ fn process_mapped_data(
 
         for sub_row in row_group {
             let aligned_row =
-                align_table_data_with_widths(&[sub_row.clone()], config, column_widths);
+                align_table_data_with_widths(std::slice::from_ref(sub_row), config, column_widths);
             let padded_row = pad_table_data_with_widths(&aligned_row, config, column_widths);
 
             if let Some(processed_sub_row) = padded_row.first() {

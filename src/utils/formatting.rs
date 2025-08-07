@@ -6,19 +6,19 @@ pub fn normalize_string(input: &str) -> Result<String, TableError> {
 
     while let Some(ch) = chars.next() {
         if ch.is_control() && ch != '\n' && ch != '\t' {
-            if ch == '\u{1b}' {
-                if let Some(&next_ch) = chars.peek() {
-                    if next_ch == '[' {
-                        chars.next();
-                        for ansi_ch in chars.by_ref() {
-                            if ansi_ch.is_ascii_alphabetic() {
-                                break;
-                            }
-                        }
-                        continue;
+            if ch == '\u{1b}'
+                && let Some(&next_ch) = chars.peek()
+                && next_ch == '['
+            {
+                chars.next();
+                for ansi_ch in chars.by_ref() {
+                    if ansi_ch.is_ascii_alphabetic() {
+                        break;
                     }
                 }
+                continue;
             }
+
             return Err(TableError::ControlCharacters);
         }
     }

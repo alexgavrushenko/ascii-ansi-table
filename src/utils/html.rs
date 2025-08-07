@@ -1,129 +1,11 @@
-use regex::Regex;
 use unicode_width::UnicodeWidthChar;
 
 pub fn convert_ansi_to_html(text: &str) -> String {
-    let mut result = text.to_string();
-
-    let fg_colors = [
-        (30, "#000000"),
-        (31, "#ff0000"),
-        (32, "#00ff00"),
-        (33, "#ffff00"),
-        (34, "#0000ff"),
-        (35, "#ff00ff"),
-        (36, "#00ffff"),
-        (37, "#ffffff"),
-    ];
-
-    let bg_colors = [
-        (40, "#000000"),
-        (41, "#ff0000"),
-        (42, "#00ff00"),
-        (43, "#ffff00"),
-        (44, "#0000ff"),
-        (45, "#ff00ff"),
-        (46, "#00ffff"),
-        (47, "#ffffff"),
-    ];
-
-    // Process basic foreground colors
-    for (code, color) in fg_colors {
-        let pattern = format!("\x1b[{code}m");
-        let replacement = format!(r#"<span style="color: {color};">"#);
-        result = result.replace(&pattern, &replacement);
-    }
-
-    // Process basic background colors
-    for (code, color) in bg_colors {
-        let pattern = format!("\x1b[{code}m");
-        let replacement = format!(r#"<span style="background-color: {color};">"#);
-        result = result.replace(&pattern, &replacement);
-    }
-
-    // Process formatting codes
-    result = result.replace("\x1b[1m", r#"<span style="font-weight: bold;">"#);
-    result = result.replace("\x1b[4m", r#"<span style="text-decoration: underline;">"#);
-    result = result.replace("\x1b[3m", r#"<span style="font-style: italic;">"#);
-    result = result.replace(
-        "\x1b[9m",
-        r#"<span style="text-decoration: line-through;">"#,
-    );
-    result = result.replace("\x1b[2m", r#"<span style="opacity: 0.6;">"#);
-    result = result.replace("\x1b[7m", r#"<span style="filter: invert(1);">"#);
-
-    // Process RGB and 256-color codes
-    let re_256_fg = Regex::new(r"\x1b\[38;5;(\d+)m").unwrap();
-    result = re_256_fg
-        .replace_all(&result, |caps: &regex::Captures| {
-            let color_num: u8 = caps[1].parse().unwrap_or(15);
-            let color = ansi_256_to_rgb(color_num);
-            format!(r#"<span style="color: {color};">"#)
-        })
-        .to_string();
-
-    let re_256_bg = Regex::new(r"\x1b\[48;5;(\d+)m").unwrap();
-    result = re_256_bg
-        .replace_all(&result, |caps: &regex::Captures| {
-            let color_num: u8 = caps[1].parse().unwrap_or(0);
-            let color = ansi_256_to_rgb(color_num);
-            format!(r#"<span style="background-color: {color};">"#)
-        })
-        .to_string();
-
-    let re_rgb_fg = Regex::new(r"\x1b\[38;2;(\d+);(\d+);(\d+)m").unwrap();
-    result = re_rgb_fg
-        .replace_all(&result, |caps: &regex::Captures| {
-            let r: u8 = caps[1].parse().unwrap_or(255);
-            let g: u8 = caps[2].parse().unwrap_or(255);
-            let b: u8 = caps[3].parse().unwrap_or(255);
-            format!(r#"<span style="color: rgb({r}, {g}, {b});">"#)
-        })
-        .to_string();
-
-    let re_rgb_bg = Regex::new(r"\x1b\[48;2;(\d+);(\d+);(\d+)m").unwrap();
-    result = re_rgb_bg
-        .replace_all(&result, |caps: &regex::Captures| {
-            let r: u8 = caps[1].parse().unwrap_or(0);
-            let g: u8 = caps[2].parse().unwrap_or(0);
-            let b: u8 = caps[3].parse().unwrap_or(0);
-            format!(r#"<span style="background-color: rgb({r}, {g}, {b});">"#)
-        })
-        .to_string();
-
-    // Handle ANSI reset - close ALL open spans
-    while result.contains("\x1b[0m") {
-        let reset_pos = result.find("\x1b[0m").unwrap();
-        let mut replacement = String::new();
-
-        // Count how many spans are currently open at this position
-        let before_reset = &result[..reset_pos];
-        let span_opens = before_reset.matches("<span").count();
-        let span_closes = before_reset.matches("</span>").count();
-        let spans_to_close = span_opens.saturating_sub(span_closes);
-
-        // Close all open spans
-        for _ in 0..spans_to_close {
-            replacement.push_str("</span>");
-        }
-
-        result = result.replacen("\x1b[0m", &replacement, 1);
-    }
-
-    // Handle specific color resets (close only one span each)
-    result = result.replace("\x1b[39m", "</span>");
-    result = result.replace("\x1b[49m", "</span>");
-
-    let re_cleanup = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
-    result = re_cleanup.replace_all(&result, "").to_string();
-
-    // Wrap emojis in spans with fixed width to match Rust's 2-character calculation
-    result = wrap_emojis_with_fixed_width(&result);
-
-    result = format!(
-        "<pre style=\"margin: 0; font-family: monospace; white-space: pre;\">{result}</pre>"
-    );
-
-    result
+    let html = ansi_to_html::convert(text).unwrap_or(text.to_string());
+    format!(
+        "<pre style=\"margin: 0; font-family: monospace; white-space: pre;\">{}</pre>",
+        wrap_emojis_with_fixed_width(&html)
+    )
 }
 
 fn wrap_emojis_with_fixed_width(text: &str) -> String {
@@ -147,40 +29,6 @@ fn wrap_emojis_with_fixed_width(text: &str) -> String {
     result
 }
 
-fn ansi_256_to_rgb(color_num: u8) -> String {
-    match color_num {
-        0 => "#000000".to_string(),
-        1 => "#800000".to_string(),
-        2 => "#008000".to_string(),
-        3 => "#808000".to_string(),
-        4 => "#000080".to_string(),
-        5 => "#800080".to_string(),
-        6 => "#008080".to_string(),
-        7 => "#c0c0c0".to_string(),
-        8 => "#808080".to_string(),
-        9 => "#ff0000".to_string(),
-        10 => "#00ff00".to_string(),
-        11 => "#ffff00".to_string(),
-        12 => "#0000ff".to_string(),
-        13 => "#ff00ff".to_string(),
-        14 => "#00ffff".to_string(),
-        15 => "#ffffff".to_string(),
-
-        16..=231 => {
-            let n = color_num - 16;
-            let r = (n / 36) * 51;
-            let g = ((n % 36) / 6) * 51;
-            let b = (n % 6) * 51;
-            format!("#{r:02x}{g:02x}{b:02x}")
-        }
-
-        232..=255 => {
-            let gray = 8 + (color_num - 232) * 10;
-            format!("#{gray:02x}{gray:02x}{gray:02x}")
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,16 +37,14 @@ mod tests {
     fn test_basic_color_conversion() {
         let input = "\x1b[31mRed text\x1b[0m";
         let result = convert_ansi_to_html(input);
-        assert!(result.contains(r#"<span style="color: #ff0000;">Red text</span>"#));
-        assert!(result.starts_with("<pre"));
-        assert!(result.ends_with("</pre>"));
+        assert!(result.contains(r#"<span style='color:var(--red,#a00)'>Red text</span>"#));
     }
 
     #[test]
     fn test_bold_formatting() {
         let input = "\x1b[1mBold text\x1b[0m";
         let result = convert_ansi_to_html(input);
-        assert!(result.contains(r#"<span style="font-weight: bold;">Bold text</span>"#));
+        assert!(result.contains(r#"<b>Bold text</b>"#));
         assert!(result.starts_with("<pre"));
         assert!(result.ends_with("</pre>"));
     }
@@ -207,7 +53,7 @@ mod tests {
     fn test_rgb_color() {
         let input = "\x1b[38;2;255;128;0mOrange text\x1b[0m";
         let result = convert_ansi_to_html(input);
-        assert!(result.contains(r#"<span style="color: rgb(255, 128, 0);">Orange text</span>"#));
+        assert!(result.contains(r#"<span style='color:#ff8000'>Orange text</span>"#));
         assert!(result.starts_with("<pre"));
         assert!(result.ends_with("</pre>"));
     }

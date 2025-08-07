@@ -59,20 +59,20 @@ fn extract_ansi_sequences(text: &str) -> Vec<String> {
     let mut chars = text.chars().peekable();
 
     while let Some(ch) = chars.next() {
-        if ch == '\u{1b}' {
-            if let Some(&'[') = chars.peek() {
-                let mut sequence = String::from("\u{1b}[");
-                chars.next();
+        if ch == '\u{1b}'
+            && let Some(&'[') = chars.peek()
+        {
+            let mut sequence = String::from("\u{1b}[");
+            chars.next();
 
-                for ch in chars.by_ref() {
-                    sequence.push(ch);
-                    if ch.is_ascii_alphabetic() {
-                        break;
-                    }
+            for ch in chars.by_ref() {
+                sequence.push(ch);
+                if ch.is_ascii_alphabetic() {
+                    break;
                 }
-
-                sequences.push(sequence);
             }
+
+            sequences.push(sequence);
         }
     }
 

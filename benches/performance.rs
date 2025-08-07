@@ -1,4 +1,6 @@
-use ascii_ansi_table::{BorderUserConfig, ColumnUserConfig, TableUserConfig, table};
+use ascii_ansi_table::{
+    BorderUserConfig, ColumnUserConfig, TableUserConfig, table, utils::convert_ansi_to_html,
+};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn generate_test_data() -> Vec<Vec<String>> {
@@ -107,6 +109,19 @@ fn benchmark_wrapping_components(c: &mut Criterion) {
     });
 }
 
+fn benchmark_ansi(c: &mut Criterion) {
+    let data = generate_test_data();
+
+    // Benchmark just the wrapping function
+    let sample_text = ascii_ansi_table::wrap_text(&text, 3, false);
+
+    c.bench_function("convert_ansi_to_html", |b| {
+        b.iter(|| {
+            convert_ansi_to_html(black_box(&sample_text.join("\n")));
+        })
+    });
+}
+
 fn benchmark_memory_usage(c: &mut Criterion) {
     let data = generate_test_data();
 
@@ -160,6 +175,7 @@ criterion_group!(
     benches,
     benchmark_table_wrapping,
     benchmark_wrapping_components,
-    benchmark_memory_usage
+    benchmark_memory_usage,
+    benchmark_ansi,
 );
 criterion_main!(benches);
