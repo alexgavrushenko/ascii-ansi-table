@@ -1,18 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Alignment {
+    #[default]
     Left,
     Right,
     Center,
     Justify,
-}
-
-impl Default for Alignment {
-    fn default() -> Self {
-        Self::Left
-    }
 }
 
 impl std::fmt::Display for Alignment {
@@ -40,18 +35,13 @@ impl std::str::FromStr for Alignment {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum VerticalAlignment {
+    #[default]
     Top,
     Middle,
     Bottom,
-}
-
-impl Default for VerticalAlignment {
-    fn default() -> Self {
-        Self::Top
-    }
 }
 
 impl std::fmt::Display for VerticalAlignment {
